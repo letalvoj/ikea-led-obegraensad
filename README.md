@@ -116,10 +116,10 @@ Connect them like this and remember to set them in `include/constants.h` accordi
 
 # Ideas
 
-[] gifs
-[] weather
-[] animation upload
-[] use `<canvas />`
+- [ ] gifs
+- [ ] weather
+- [ ] animation upload
+- [ ] use `<canvas />`
 
 ## Credits
 
