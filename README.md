@@ -25,6 +25,8 @@ Turn your OBEGRÄNSAD LED Wall Lamp into a live drawing canvas
   - [Configuration](#configuration)
   - [Upload Methods](#upload-methods)
   - [Visual Feedback](#visual-feedback)
+- [Bluetooth Control](#bluetooth-control)
+  - [Device Protocol](#device-protocol)
 - [HTTP API Reference](#http-api-reference)
   - [Device Information](#device-information)
   - [Plugin Control](#plugin-control)
@@ -277,9 +279,62 @@ OTA update finished successfully!
 
 ---
 
+## Bluetooth Control
+
+ESP32 boards also advertise themselves over Bluetooth LE as `IKEA-LED`, so the lamp can be
+controlled where it cannot join the WiFi (for example a corporate network). The display never
+waits for WiFi: it starts drawing right away, tries the saved network in the background and
+opens the `IKEA` setup access point without blocking. WiFi can be switched off entirely on the
+Device page.
+
+- **Web page:** build it with `cd frontend && pnpm build:ble` (output in `frontend/dist-ble`), or
+  let the `Bluetooth Page` workflow publish it to GitHub Pages together with the latest
+  `esp32dev` firmware. It needs Chrome or Edge (Web Bluetooth) and HTTPS or `localhost`.
+- **Pairing:** the first connection asks for a code, enter `003762` (`BLE_PASSKEY` in
+  `include/constants.h`). Every characteristic requires the authenticated pairing.
+- **Clock:** the page sets the lamp's clock on every connect, so the clock plugins work without
+  NTP. The timezone comes from the settings.
+- **Firmware updates:** the Device page streams a `firmware.bin` over Bluetooth. A freshly
+  updated image has to run for 30 seconds before it is accepted; if it crashes before that, the
+  bootloader goes back to the previous firmware.
+
+### Device Protocol
+
+The websocket (`/ws`) and Bluetooth carry the same JSON commands, `{"event": "<name>", ...}`:
+
+| Event | Fields | Effect |
+| --- | --- | --- |
+| `info` | | Sends the current state (`info` event) |
+| `plugin` / `persist-plugin` | `plugin` | Switches the mode / makes it the default |
+| `brightness`, `rotate` | `brightness`, `direction` | Display settings |
+| `frame` | `data`: 256 brightness values | Draws a frame and pauses the active mode |
+| `pixel` | `x`, `y`, `value` | Sets one pixel and pauses the active mode |
+| `stream` | `enabled` | `false` hands the screen back to the active mode |
+| `schedule`, `schedule-start`, `schedule-stop`, `schedule-clear` | `schedule` | Scheduler |
+| `message`, `message-remove` | `text`, `repeat`, `id`, ... | Scrolling messages |
+| `config-get`, `config-set`, `config-reset` | `config` | Settings (`config` event) |
+| `device-info` | | Diagnostics (`device` event) |
+| `time` | `epoch` | Sets the clock |
+| `wifi-credentials`, `wifi-forget` | `ssid`, `password` | Station WiFi |
+| `reboot`, `factory-reset` | | Maintenance |
+
+Binary 256-byte websocket messages are drawn as frames too. Commands report back with a
+`result` event (`command`, `ok`, `message`).
+
 ## HTTP API Reference
 
 Base URL: `http://your-server/api`
+
+### Drawing and Diagnostics
+
+```bash
+# show an arbitrary frame: 512 hex digits, one brightness byte per pixel
+curl "http://your-server/api/frame?data=$(printf 'ff%.0s' {1..256})"
+# give the screen back to the active mode
+curl "http://your-server/api/stream?enabled=0"
+# firmware build, uptime, memory, WiFi and Bluetooth state
+curl http://your-server/api/device
+```
 
 ### Device Information
 

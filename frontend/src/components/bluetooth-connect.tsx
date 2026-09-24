@@ -2,7 +2,7 @@ import { type Component, createSignal, onMount, Show } from "solid-js";
 
 import { useStore } from "../contexts/store";
 import { bleTransport } from "../transport";
-import { CONNECTING, isBluetoothAvailable } from "../transport/ble";
+import { CONNECTING, isBluetoothAvailable, PAIRING_CODE } from "../transport/ble";
 import Button from "./button";
 
 /** Connect screen of the Bluetooth build, shown until a device is paired and open. */
@@ -50,7 +50,7 @@ export const BluetoothConnect: Component = () => {
           </Button>
         </Show>
         <p class="text-sm">
-          The first time, your computer asks for a pairing code: enter <b>003762</b>.
+          The first time, your computer asks for a pairing code: enter <b>{PAIRING_CODE}</b>.
         </p>
       </Show>
 

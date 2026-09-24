@@ -313,9 +313,9 @@ const FirmwareCard: Component = () => {
       >
         <p class="text-sm text-gray-500">
           Upload a <code>firmware.bin</code> built for this board. It takes a minute or two over
-          Bluetooth. If the new firmware fails to start, the lamp returns to the current one.
-          The latest build for esp32dev is published next to this page:{" "}
-          <a href="firmware-esp32dev.bin" download class="underline">
+          Bluetooth. If the new firmware fails to start, the lamp returns to the current one. The
+          latest build for esp32dev is published next to this page:{" "}
+          <a href="firmware-esp32dev.bin" download="firmware-esp32dev.bin" class="underline">
             firmware-esp32dev.bin
           </a>
           .

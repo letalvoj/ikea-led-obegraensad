@@ -127,6 +127,16 @@ void wifiLoop()
       Serial.print("[WiFi] connected, IP: ");
       Serial.println(WiFi.localIP());
     }
+    else if (servicesStarted)
+    {
+      // The async web server already owns port 80, so the setup portal cannot run
+      // any more; keep retrying the station. Bluetooth, or a reboot (which brings
+      // the portal back), is the way to fix bad credentials from here.
+      if (millis() - stateSince >= WIFI_CONNECT_TIMEOUT_MS)
+      {
+        beginStation();
+      }
+    }
     else if (!wifiManager.getWiFiIsSaved() || millis() - stateSince >= WIFI_CONNECT_TIMEOUT_MS)
     {
       startPortal();
@@ -152,7 +162,11 @@ void wifiLoop()
     break;
 
   case WifiState::Connected:
-    // the station reconnects on its own after drops (setAutoReconnect)
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      Serial.println("[WiFi] connection lost");
+      enterState(WifiState::Connecting);
+    }
     break;
   }
 

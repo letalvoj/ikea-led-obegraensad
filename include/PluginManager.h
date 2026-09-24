@@ -5,9 +5,9 @@
 #include <string>
 #include <vector>
 
+#include "commands.h"
 #include "screen.h"
 #include "signs.h"
-#include "websocket.h"
 
 class Plugin
 {

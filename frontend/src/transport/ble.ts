@@ -10,12 +10,15 @@ const RX_UUID = "0b5e0002-1ea0-4d1a-9b7e-0bec0ffee000";
 const TX_UUID = "0b5e0003-1ea0-4d1a-9b7e-0bec0ffee000";
 const OTA_UUID = "0b5e0004-1ea0-4d1a-9b7e-0bec0ffee000";
 
+/** Static passkey, BLE_PASSKEY in include/constants.h, zero-padded as the OS shows it. */
+export const PAIRING_CODE = "003762";
+
 const KIND_JSON = 0x01;
 const KIND_FRAME = 0x02;
 const FLAG_FINAL = 0x80;
 
-// Stays within the ATT payload of the smallest MTU browsers commonly negotiate
-// (185 on macOS); larger platforms simply use more, smaller writes than necessary.
+// Writes with response larger than the negotiated MTU are sent by the OS as ATT long
+// writes, which the device accepts up to 512 bytes; this keeps each one small.
 const WRITE_CHUNK = 180;
 
 const ESP_IMAGE_MAGIC = 0xe9;
@@ -196,7 +199,7 @@ export class BleTransport extends EventTarget {
     await this.retry(() => tx.startNotifications());
 
     // The characteristics require an authenticated link, so this first write triggers
-    // the OS pairing dialog (passkey 003762). Retry while the user is typing it.
+    // the OS pairing dialog (PAIRING_CODE). Retry while the user is typing it.
     const clock = JSON.stringify({ event: "time", epoch: Math.floor(Date.now() / 1000) });
     await this.retry(() => this.writeChunks(this.toChunks(KIND_JSON, clock)));
 
