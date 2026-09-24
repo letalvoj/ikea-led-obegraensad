@@ -1,0 +1,71 @@
+name: Bluetooth Page
+
+# Publishes the Web Bluetooth control page (and the matching esp32dev firmware, for
+# updates over Bluetooth) to GitHub Pages.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - "src/**"
+      - "include/**"
+      - "platformio.ini"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Build Bluetooth page
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build:ble
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build firmware
+        run: |
+          pip install platformio
+          pio run --environment esp32dev
+          cp .pio/build/esp32dev/firmware.bin frontend/dist-ble/firmware-esp32dev.bin
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: frontend/dist-ble
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

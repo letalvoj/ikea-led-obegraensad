@@ -1,7 +1,25 @@
 import { type Component, createSignal, type JSX, Show } from "solid-js";
 
 import { useStore } from "../../contexts/store";
+import { IS_BLE } from "../../transport";
+import { BluetoothConnect } from "../bluetooth-connect";
 import { ScreenInfo } from "../screen-info";
+
+const WifiConnectionHint: Component = () => {
+  const [store] = useStore();
+
+  return (
+    <>
+      <h2 class="text-4xl mb-4">{store.connectionStatus}...</h2>
+      <Show when={store.connectionState() === 0}>
+        <p class="text-white text-sm max-w-md mx-auto">
+          Make sure your device is powered on and connected to the same network. Check browser
+          console for connection errors.
+        </p>
+      </Show>
+    </>
+  );
+};
 
 export const Layout: Component<{
   content: JSX.Element;
@@ -20,12 +38,8 @@ export const Layout: Component<{
         fallback={
           <main class="h-full overflow-auto">
             <ScreenInfo>
-              <h2 class="text-4xl mb-4">{store.connectionStatus}...</h2>
-              <Show when={store.connectionState() === 0}>
-                <p class="text-white text-sm max-w-md mx-auto">
-                  Make sure your device is powered on and connected to the same network. Check
-                  browser console for connection errors.
-                </p>
+              <Show when={IS_BLE} fallback={<WifiConnectionHint />}>
+                <BluetoothConnect />
               </Show>
             </ScreenInfo>
           </main>

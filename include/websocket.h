@@ -1,5 +1,6 @@
 #pragma once
 
+#include "commands.h"
 #include "constants.h"
 
 #ifdef ENABLE_SERVER
@@ -7,17 +8,12 @@
 
 #include "storage.h"
 
-void onWsEvent(AsyncWebSocket *server,
-               AsyncWebSocketClient *client,
-               AwsEventType type,
-               void *arg,
-               uint8_t *data,
-               size_t len);
-void sendInfo();
-void sendLiveFrame();
-void sendWSMessage(String &message);
 void initWebsocketServer(AsyncWebServer &server);
 void cleanUpClients();
+
+void wsSendText(const String &message);
+void wsSendFrame(const uint8_t *frame, size_t len);
+size_t wsClientCount();
 
 #ifdef WS_MAX_QUEUED_MESSAGES
 #undef WS_MAX_QUEUED_MESSAGES

@@ -1,23 +1,20 @@
 import { createEventSignal } from "@solid-primitives/event-listener";
-import { createReconnectingWS, createWSState } from "@solid-primitives/websocket";
 import { batch, createContext, createEffect, type JSX, useContext } from "solid-js";
 import { createStore } from "solid-js/store";
 
-import { type ScheduleItem, type Store, type StoreActions, SYSTEM_STATUS } from "../types";
+import { createConnectionState, transport } from "../transport";
+import {
+  type CommandResult,
+  type DeviceConfig,
+  type DeviceInfo,
+  type ScheduleItem,
+  type Store,
+  type StoreActions,
+  SYSTEM_STATUS,
+} from "../types";
 import { ToastProvider } from "./toast";
 
-const ws = createReconnectingWS(
-  `${
-    import.meta.env.PROD
-      ? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/`
-      : import.meta.env.VITE_WS_URL
-  }ws`,
-);
-ws.addEventListener("open", (event) => {
-  (event.currentTarget as WebSocket).binaryType = "arraybuffer";
-});
-
-const wsState = createWSState(ws);
+const connectionState = createConnectionState();
 
 const connectionStatus = ["Connecting", "Connected", "Disconnecting", "Disconnected"];
 
@@ -32,7 +29,7 @@ const [mainStore, setStore] = createStore<Store>({
   indexMatrix: [...new Array(256)].map((_, i) => i),
   leds: [...new Array(256)].fill(0),
   systemStatus: SYSTEM_STATUS.NONE,
-  connectionState: wsState,
+  connectionState,
   connectionStatus: connectionStatus[0],
   schedule: [],
 });
@@ -49,7 +46,7 @@ const actions: StoreActions = {
   setLeds: (leds) => setStore("leds", leds),
   setSystemStatus: (systemStatus: SYSTEM_STATUS) => setStore("systemStatus", systemStatus),
   setSchedule: (items: ScheduleItem[]) => setStore("schedule", items),
-  send: ws.send,
+  send: (message) => transport.send(message),
 };
 
 const store: [Store, StoreActions] = [mainStore, actions] as const;
@@ -64,25 +61,25 @@ const isValidBoolean = (value: unknown): value is boolean => typeof value === "b
 const isValidArray = (value: unknown): value is unknown[] => Array.isArray(value);
 
 export const StoreProvider = (props?: { value?: Store; children?: JSX.Element }) => {
-  const messageEvent = createEventSignal<{ message: MessageEvent }>(ws, "message");
-  const errorEvent = createEventSignal<{ error: Event }>(ws, "error");
+  const messageEvent = createEventSignal<{ message: MessageEvent }>(transport, "message");
+  const errorEvent = createEventSignal<{ error: Event }>(transport, "error");
 
   createEffect(() => {
-    const state = wsState();
+    const state = connectionState();
 
     if (state >= 0 && state < connectionStatus.length) {
       setStore("connectionStatus", connectionStatus[state]);
     }
 
     if (state === WebSocket.CLOSED || state === WebSocket.CLOSING) {
-      console.warn("WebSocket disconnected. Will attempt to reconnect...");
+      console.warn("Device disconnected.");
     }
   });
 
   createEffect(() => {
     const error = errorEvent();
     if (error) {
-      console.error("WebSocket error occurred:", error);
+      console.error("Device connection error:", error);
     }
   });
 
@@ -146,9 +143,21 @@ export const StoreProvider = (props?: { value?: Store; children?: JSX.Element })
             }
           });
           break;
+
+        case "device":
+          setStore("device", json as DeviceInfo);
+          break;
+
+        case "config":
+          setStore("config", json as DeviceConfig);
+          break;
+
+        case "result":
+          setStore("lastResult", json as CommandResult);
+          break;
       }
     } catch (error) {
-      console.error("Failed to parse WebSocket message:", error);
+      console.error("Failed to parse device message:", error);
     }
   });
 

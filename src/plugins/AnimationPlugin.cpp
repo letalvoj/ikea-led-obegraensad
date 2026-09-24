@@ -103,7 +103,7 @@ void AnimationPlugin::websocketHook(JsonDocument &request)
     jsonDocument["frameDelay"] = frameDelay;
     String output;
     serializeJson(jsonDocument, output);
-    sendWSMessage(output);
+    broadcastMessage(output);
     jsonDocument.clear();
   }
 }

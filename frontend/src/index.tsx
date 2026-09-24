@@ -5,6 +5,7 @@ import "./index.css";
 import { App } from "./app";
 import { StoreProvider } from "./contexts/store";
 import { Creator } from "./creator";
+import Device from "./device";
 import Scheduler from "./scheduler";
 
 const Router = () => {
@@ -29,6 +30,9 @@ const Router = () => {
         </Match>
         <Match when={location() === "/scheduler"}>
           <Scheduler />
+        </Match>
+        <Match when={location() === "/device"}>
+          <Device />
         </Match>
       </Switch>
     </div>

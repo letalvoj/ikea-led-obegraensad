@@ -1,4 +1,5 @@
 #include "webhandler.h"
+#include "commands.h"
 #include "config.h"
 #include "messages.h"
 #include "scheduler.h"
@@ -137,43 +138,68 @@ void handleGetData(AsyncWebServerRequest *request)
 void handleGetInfo(AsyncWebServerRequest *request)
 {
   JsonDocument jsonDocument;
-  jsonDocument["rows"] = ROWS;
-  jsonDocument["cols"] = COLS;
-  jsonDocument["status"] = currentStatus;
-  jsonDocument["plugin"] = pluginManager.getActivePlugin()->getId();
-  jsonDocument["rotation"] = Screen.currentRotation;
-  jsonDocument["brightness"] = Screen.getCurrentBrightness();
-  jsonDocument["scheduleActive"] = Scheduler.isActive;
+  buildInfo(jsonDocument, false);
+  jsonDocument.remove("event");
   jsonDocument["rssi"] = WiFi.RSSI();
   jsonDocument["uptime"] = millis() / 1000;
   jsonDocument["freeHeap"] = ESP.getFreeHeap();
   jsonDocument["ipAddress"] = WiFi.localIP().toString();
   jsonDocument["macAddress"] = WiFi.macAddress();
 
-  JsonArray scheduleArray = jsonDocument["schedule"].to<JsonArray>();
-  for (const auto &item : Scheduler.schedule)
-  {
-    JsonObject scheduleItem = scheduleArray.add<JsonObject>();
-    scheduleItem["pluginId"] = item.pluginId;
-    scheduleItem["duration"] = item.duration / 1000; // Convert milliseconds to seconds
-  }
+  String output;
+  serializeJson(jsonDocument, output);
+  request->send(200, "application/json", output);
+}
 
-  JsonArray plugins = jsonDocument["plugins"].to<JsonArray>();
-
-  std::vector<Plugin *> &allPlugins = pluginManager.getAllPlugins();
-
-  for (Plugin *plugin : allPlugins)
-  {
-    JsonObject object = plugins.add<JsonObject>();
-    object["id"] = plugin->getId();
-    object["name"] = plugin->getName();
-  }
+void handleGetDevice(AsyncWebServerRequest *request)
+{
+  JsonDocument jsonDocument;
+  buildDeviceInfo(jsonDocument);
 
   String output;
   serializeJson(jsonDocument, output);
-  jsonDocument.clear();
-
   request->send(200, "application/json", output);
+}
+
+// http://your-server/api/frame?data=<512 hex digits, one byte of brightness per pixel>
+void handleSetFrame(AsyncWebServerRequest *request)
+{
+  const String &hex = request->arg("data");
+  if (hex.length() != TOTAL_PIXELS * 2)
+  {
+    sendJsonError(request, 422, "data must be 512 hex digits (256 pixels)");
+    return;
+  }
+
+  uint8_t frame[TOTAL_PIXELS];
+  for (int i = 0; i < TOTAL_PIXELS; i++)
+  {
+    char byte[3] = {hex[i * 2], hex[i * 2 + 1], 0};
+    char *end;
+    frame[i] = strtoul(byte, &end, 16);
+    if (*end)
+    {
+      sendJsonError(request, 422, "data must be hex");
+      return;
+    }
+  }
+
+  showFrame(frame, sizeof(frame));
+  sendJsonSuccess(request, "Frame shown");
+}
+
+// http://your-server/api/stream?enabled=0 hands the screen back to the active plugin
+void handleSetStream(AsyncWebServerRequest *request)
+{
+  if (request->arg("enabled") == "1")
+  {
+    showFrame(Screen.getRenderBuffer(), TOTAL_PIXELS);
+  }
+  else
+  {
+    stopStreaming();
+  }
+  sendJsonSuccess(request, "Stream mode updated");
 }
 
 void handleSetSchedule(AsyncWebServerRequest *request)

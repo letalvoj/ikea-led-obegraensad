@@ -9,6 +9,9 @@ void sendJsonError(AsyncWebServerRequest *request, int statusCode, const char *e
 void handleMessage(AsyncWebServerRequest *request);
 void handleMessageRemove(AsyncWebServerRequest *request);
 void handleGetInfo(AsyncWebServerRequest *request);
+void handleGetDevice(AsyncWebServerRequest *request);
+void handleSetFrame(AsyncWebServerRequest *request);
+void handleSetStream(AsyncWebServerRequest *request);
 void handleSetPlugin(AsyncWebServerRequest *request);
 void handleSetBrightness(AsyncWebServerRequest *request);
 void handleGetData(AsyncWebServerRequest *request);

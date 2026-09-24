@@ -23,6 +23,12 @@ void initWebServer()
   server.on("/api/removemessage", HTTP_GET, handleMessageRemove);
 
   server.on("/api/info", HTTP_GET, handleGetInfo);
+  server.on("/api/device", HTTP_GET, handleGetDevice);
+
+  // Arbitrary drawing: show a raw frame, which pauses the active plugin until
+  // streaming is switched off again
+  server.on("/api/frame", HTTP_ANY, handleSetFrame);
+  server.on("/api/stream", HTTP_ANY, handleSetStream);
 
   // Handle API request to set an active plugin by ID
   server.on("/api/plugin", HTTP_PATCH, handleSetPlugin);

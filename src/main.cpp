@@ -2,18 +2,9 @@
 #include <BfButton.h>
 #include <SPI.h>
 
-#ifdef ESP8266
-/* Fix duplicate defs of HTTP_GET, HTTP_POST, ... in ESPAsyncWebServer.h */
-#define WEBSERVER_H
-#endif
-
-#include <WiFiManager.h>
-
 #ifdef ESP32
 #include <ESPmDNS.h>
-#endif
-#ifdef ESP8266
-#include <ESP8266WiFi.h>
+#include <esp_ota_ops.h>
 #endif
 
 #include "PluginManager.h"
@@ -22,6 +13,7 @@
 
 #include "plugins/ArtNet.h"
 #include "plugins/Blob.h"
+#include "plugins/BoxDudePlugin.h"
 #include "plugins/BreakoutPlugin.h"
 #include "plugins/BubblesPlugin.h"
 #include "plugins/CheckerboardPlugin.h"
@@ -55,16 +47,16 @@
 #endif
 
 #include "asyncwebserver.h"
+#include "ble.h"
+#include "commands.h"
 #include "messages.h"
 #include "ota.h"
 #include "screen.h"
 #include "secrets.h"
 #include "websocket.h"
+#include "wifi_control.h"
 
 BfButton btn(BfButton::STANDALONE_DIGITAL, PIN_BUTTON, true, LOW);
-
-unsigned long previousMillis = 0;
-unsigned long interval = 30000;
 
 PluginManager pluginManager;
 #ifdef ESP32
@@ -72,49 +64,39 @@ DRAM_ATTR volatile SYSTEM_STATUS currentStatus = NONE;
 #else
 volatile SYSTEM_STATUS currentStatus = NONE;
 #endif
-WiFiManager wifiManager;
 
-// SNTP stores the pointer it is given instead of copying the string, so these
-// have to outlive the configTzTime() call below.
-String ntpServer;
-String tzInfo;
-
-unsigned long lastConnectionAttempt = 0;
-const unsigned long connectionInterval = 10000;
-unsigned long reconnectionBackoff = 5000;            // Start with 5 seconds
-const unsigned long maxReconnectionBackoff = 300000; // Max 5 minutes
-uint8_t reconnectionAttempts = 0;
-
-void connectToWiFi()
+#ifdef ESP32
+// Keep a freshly OTA-flashed image in "pending verify" instead of accepting it at
+// boot; markFirmwareHealthy() accepts it once it has run for a while. If it crashes
+// before that, the bootloader falls back to the previous image.
+extern "C" bool verifyRollbackLater()
 {
-  // if a WiFi setup AP was started, reboot is required to clear routes
-  bool wifiWebServerStarted = false;
-  wifiManager.setWebServerCallback([&wifiWebServerStarted]() { wifiWebServerStarted = true; });
+  return true;
+}
 
-  wifiManager.setHostname(WIFI_HOSTNAME);
+void markFirmwareHealthy()
+{
+  static bool marked = false;
+  if (marked || millis() < OTA_ROLLBACK_GRACE_MS)
+  {
+    return;
+  }
+  marked = true;
 
-#if defined(IP_ADDRESS) && defined(GWY) && defined(SUBNET) && defined(DNS1)
-  auto ip = IPAddress();
-  ip.fromString(IP_ADDRESS);
-
-  auto gwy = IPAddress();
-  gwy.fromString(GWY);
-
-  auto subnet = IPAddress();
-  subnet.fromString(SUBNET);
-
-  auto dns = IPAddress();
-  dns.fromString(DNS1);
-
-  wifiManager.setSTAStaticIPConfig(ip, gwy, subnet, dns);
+  esp_ota_img_states_t state;
+  if (esp_ota_get_state_partition(esp_ota_get_running_partition(), &state) == ESP_OK &&
+      state == ESP_OTA_IMG_PENDING_VERIFY)
+  {
+    esp_ota_mark_app_valid_cancel_rollback();
+    Serial.println("[OTA] new firmware marked as valid");
+  }
+}
 #endif
 
-  wifiManager.setConnectRetries(10);
-  wifiManager.setConnectTimeout(10);
-  wifiManager.setConfigPortalTimeout(180);
-  wifiManager.setWiFiAutoReconnect(true);
-  wifiManager.autoConnect(WIFI_MANAGER_SSID);
-
+// Everything that needs a network. Runs once, the first time WiFi connects.
+void startNetworkServices()
+{
+#ifdef ENABLE_SERVER
 #ifdef ESP32
   if (MDNS.begin(WIFI_HOSTNAME))
   {
@@ -127,14 +109,16 @@ void connectToWiFi()
   }
 #endif
 
-  if (wifiWebServerStarted)
-  {
-    // Reboot required, otherwise wifiManager server interferes with our server
-    Serial.println("Done running WiFi Manager webserver - rebooting");
-    ESP.restart();
-  }
+  // lwIP SNTP stores the server-name pointer without copying it, so the strings
+  // must outlive this call.
+  static String tzInfo = config.getTzInfo();
+  static String ntpServer = config.getNtpServer();
+  configTzTime(tzInfo.c_str(), ntpServer.c_str());
 
-  lastConnectionAttempt = millis();
+  initOTA(server);
+  initWebsocketServer(server);
+  initWebServer();
+#endif
 }
 
 void pressHandler(BfButton *btn, BfButton::press_pattern_t pattern)
@@ -171,24 +155,12 @@ void baseSetup()
   Screen.setup();
 #endif
 
-  // Initialize configuration system (always safe)
   config.begin();
 
-// server
-#ifdef ENABLE_SERVER
-  connectToWiFi();
-
-  // set time server using config values
-  // NOTE: lwIP SNTP stores the server-name pointer without copying it, so the
-  // String must outlive this call. Keep them static so their buffers persist.
-  static String tzInfo = config.getTzInfo();
-  static String ntpServer = config.getNtpServer();
-  configTzTime(tzInfo.c_str(), ntpServer.c_str());
-
-  initOTA(server);
-  initWebsocketServer(server);
-  initWebServer();
-#endif
+  // The clock can also be set over Bluetooth without any NTP, so apply the
+  // timezone right away instead of waiting for configTzTime().
+  setenv("TZ", config.getTzInfo().c_str(), 1);
+  tzset();
 
   pluginManager.addPlugin(new DrawPlugin());
   pluginManager.addPlugin(new BreakoutPlugin());
@@ -224,11 +196,25 @@ void baseSetup()
   pluginManager.addPlugin(new ArtNetPlugin());
 #endif
 
+  // appended last so the ids of the existing plugins (and saved schedules) stay put
+  pluginManager.addPlugin(new BoxDudePlugin());
+
   Screen.clear();
   pluginManager.init();
   Scheduler.init();
 
   btn.onPress(pressHandler).onDoublePress(pressHandler).onPressFor(pressHandler, 1000);
+}
+
+// Connectivity comes up after the display is already running and never blocks it.
+void connectivitySetup()
+{
+#ifdef ENABLE_SERVER
+  wifiSetup(startNetworkServices);
+#endif
+#ifdef ENABLE_BLE
+  bleSetup();
+#endif
 }
 
 #ifdef ESP32
@@ -254,6 +240,7 @@ void setup()
                           1,
                           &screenDrawingTaskHandle,
                           0);
+  connectivitySetup();
 }
 #endif
 #ifdef ESP8266
@@ -268,6 +255,7 @@ void setup()
 {
   baseSetup();
   Scheduler.start();
+  connectivitySetup();
 }
 #endif
 
@@ -278,8 +266,13 @@ void loop()
   btn.read();
 
 #ifdef ENABLE_SERVER
+  wifiLoop();
   ElegantOTA.loop();
 #endif
+#ifdef ENABLE_BLE
+  bleLoop();
+#endif
+  commandsLoop();
 
 #if !defined(ESP32) && !defined(ESP8266)
   pluginManager.runActivePlugin();
@@ -295,37 +288,12 @@ void loop()
     }
   }
 
-  // Check WiFi less frequently with exponential backoff
-  if (WiFi.status() != WL_CONNECTED)
-  {
-    unsigned long currentMillis = millis();
-    if (currentMillis - lastConnectionAttempt >= reconnectionBackoff)
-    {
-      Serial.println("WiFi disconnected, attempting reconnection...");
-      connectToWiFi();
-
-      // Exponential backoff: double the wait time, up to max
-      reconnectionAttempts++;
-      reconnectionBackoff = min(reconnectionBackoff * 2, maxReconnectionBackoff);
-    }
-  }
-  else
-  {
-    if (reconnectionAttempts > 0)
-    {
-      Serial.println("WiFi reconnected successfully");
-      reconnectionAttempts = 0;
-      reconnectionBackoff = 5000;
-    }
-  }
-
   taskCounter++;
   if (taskCounter > 16)
   {
     taskCounter = 0;
   }
 
-#ifdef ENABLE_SERVER
   static unsigned long lastLiveFrameMillis = 0;
   const unsigned long currentMillis = millis();
   if (currentMillis - lastLiveFrameMillis >= 100)
@@ -334,9 +302,11 @@ void loop()
     sendLiveFrame();
   }
 
+#ifdef ENABLE_SERVER
   cleanUpClients();
 #endif
 #ifdef ESP32
+  markFirmwareHealthy();
   vTaskDelay(1);
 #else
   delay(1);

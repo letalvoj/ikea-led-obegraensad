@@ -67,6 +67,23 @@ constexpr uint16_t TOTAL_PIXELS = ROWS * COLS;
 // name of WiFi created by the device if no known WiFi is available
 #define WIFI_MANAGER_SSID "IKEA"
 
+// how long to try the saved WiFi before opening the setup AP, and how long the AP stays up
+#define WIFI_CONNECT_TIMEOUT_MS 30000
+#define WIFI_PORTAL_TIMEOUT_S 180
+
+// Bluetooth LE control (ESP32 only, the ESP8266 has no Bluetooth radio)
+#ifdef ESP32
+#define ENABLE_BLE
+#define BLE_DEVICE_NAME "IKEA-LED"
+// static pairing passkey, entered as 003762 in the OS pairing dialog
+#define BLE_PASSKEY 3762
+// transmit power in dBm; the lamp sits on a desk, so keep it low
+#define BLE_TX_POWER_DBM -12
+#endif
+
+// a freshly flashed OTA image is rolled back unless it keeps running this long
+#define OTA_ROLLBACK_GRACE_MS 30000
+
 // use ALL of the following to use static IP config
 /*
 #define IP_ADDRESS "192.168.0.250"

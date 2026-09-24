@@ -21,6 +21,7 @@ private:
   String ntpServer;
   String tzInfo;
   bool autoStartSchedule;
+  bool wifiEnabled;
   bool initialized;
 
 public:
@@ -43,6 +44,7 @@ public:
   String getNtpServer() const;
   String getTzInfo() const;
   bool getAutoStartSchedule() const;
+  bool getWifiEnabled() const;
   bool isInitialized() const { return initialized; }
   
   // Setters with validation
@@ -50,7 +52,8 @@ public:
   void setNtpServer(const String& server);
   void setTzInfo(const String& tz);
   void setAutoStartSchedule(bool autoStart);
-  
+  void setWifiEnabled(bool enabled);
+
   // Export to JSON
   String toJson() const;
   

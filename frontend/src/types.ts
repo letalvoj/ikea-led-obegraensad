@@ -11,6 +11,52 @@ export interface ScheduleItem {
   duration: number;
 }
 
+/** Persisted device settings ("config" event, mirrors Config::toJson on the device). */
+export interface DeviceConfig {
+  weatherLocation: string;
+  ntpServer: string;
+  tzInfo: string;
+  autoStartSchedule: boolean;
+  wifiEnabled: boolean;
+}
+
+/** Diagnostics ("device" event, mirrors buildDeviceInfo on the device). */
+export interface DeviceInfo {
+  firmware: string;
+  uptime: number;
+  freeHeap: number;
+  resetReason: string;
+  epoch: number;
+  tzInfo: string;
+  wifi: {
+    enabled: boolean;
+    state: string;
+    connected: boolean;
+    ssid: string;
+    portalSsid: string;
+    hostname: string;
+    macAddress: string;
+    ipAddress?: string;
+    rssi?: number;
+  };
+  ble?: {
+    name: string;
+    address: string;
+    connected: boolean;
+    paired: boolean;
+    mtu: number;
+    bonds: number;
+    txPowerDbm: number;
+  };
+}
+
+/** Outcome of a command ("result" event). */
+export interface CommandResult {
+  command: string;
+  ok: boolean;
+  message?: string;
+}
+
 export interface StoreActions {
   setIsActiveScheduler: (isActive: boolean) => void;
   setRotation: (rotation: number) => void;
@@ -40,6 +86,9 @@ export interface Store {
   connectionState: () => number;
   connectionStatus?: string;
   schedule: ScheduleItem[];
+  device?: DeviceInfo;
+  config?: DeviceConfig;
+  lastResult?: CommandResult;
 }
 
 export interface IToastContext {

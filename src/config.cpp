@@ -54,6 +54,8 @@ void Config::begin()
   Serial.println(tzInfo);
   Serial.print("[Config] Auto-Start Schedule: ");
   Serial.println(autoStartSchedule ? "enabled" : "disabled");
+  Serial.print("[Config] WiFi: ");
+  Serial.println(wifiEnabled ? "enabled" : "disabled");
   Serial.println("[Config] ============================================");
 }
 
@@ -64,6 +66,7 @@ void Config::setDefaults()
   ntpServer = String(NTP_SERVER);
   tzInfo = String(TZ_INFO);
   autoStartSchedule = false;
+  wifiEnabled = true;
 }
 
 void Config::load()
@@ -80,7 +83,8 @@ void Config::load()
     ntpServer = preferences.getString("ntpServer", String(NTP_SERVER));
     tzInfo = preferences.getString("tzInfo", String(TZ_INFO));
     autoStartSchedule = preferences.getBool("autoSchedule", false);
-    
+    wifiEnabled = preferences.getBool("wifiEnabled", true);
+
     Serial.println("[Config] Configuration loaded from storage");
   } catch (...) {
     Serial.println("[Config] Error loading config, using defaults");
@@ -102,7 +106,8 @@ void Config::save()
     preferences.putString("ntpServer", ntpServer);
     preferences.putString("tzInfo", tzInfo);
     preferences.putBool("autoSchedule", autoStartSchedule);
-    
+    preferences.putBool("wifiEnabled", wifiEnabled);
+
     Serial.println("[Config] Configuration saved");
   } catch (...) {
     Serial.println("[Config] Error: Could not save configuration");
@@ -160,6 +165,16 @@ void Config::setAutoStartSchedule(bool autoStart)
   autoStartSchedule = autoStart;
 }
 
+bool Config::getWifiEnabled() const
+{
+  return wifiEnabled;
+}
+
+void Config::setWifiEnabled(bool enabled)
+{
+  wifiEnabled = enabled;
+}
+
 
 String Config::toJson() const
 {
@@ -168,7 +183,8 @@ String Config::toJson() const
   doc["ntpServer"] = ntpServer;
   doc["tzInfo"] = tzInfo;
   doc["autoStartSchedule"] = autoStartSchedule;
-  
+  doc["wifiEnabled"] = wifiEnabled;
+
   String output;
   serializeJson(doc, output);
   return output;
@@ -216,7 +232,11 @@ bool Config::fromJson(const String& json)
   if (doc["autoStartSchedule"].is<bool>()) {
     autoStartSchedule = doc["autoStartSchedule"].as<bool>();
   }
-  
+
+  if (doc["wifiEnabled"].is<bool>()) {
+    wifiEnabled = doc["wifiEnabled"].as<bool>();
+  }
+
   return true;
 }
 

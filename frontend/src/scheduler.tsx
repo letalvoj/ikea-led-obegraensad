@@ -5,27 +5,41 @@ import { Layout } from "./components/layout/layout";
 import { useStore } from "./contexts/store";
 import { useToast } from "./contexts/toast";
 
-const API_URL = import.meta.env.PROD
-  ? `http://${window.location.host}/`
-  : import.meta.env.VITE_BASE_URL;
+// Scheduler commands go over the device connection (WebSocket or Bluetooth); the
+// device answers with an updated "info" event.
+const useScheduleControls = () => {
+  const [store, actions] = useStore();
+  const { toast } = useToast();
+
+  const send = (message: object) => actions.send(JSON.stringify(message));
+
+  const toggle = () => {
+    if (store.isActiveScheduler) {
+      send({ event: "schedule-stop" });
+      toast("Stopped schedule", 2000);
+    } else if (store.schedule.length === 0) {
+      toast("Cannot start empty schedule", 2000);
+    } else {
+      send({ event: "schedule", schedule: store.schedule });
+      toast("Schedule started", 2000);
+    }
+  };
+
+  const reset = () => {
+    send({ event: "schedule-clear" });
+    toast("Reset schedule", 2000);
+  };
+
+  return { toggle, reset };
+};
 
 export const ResetScheduleButton = () => {
-  const { toast } = useToast();
+  const { reset } = useScheduleControls();
 
   return (
     <button
       type="button"
-      onClick={async () => {
-        try {
-          const response = await fetch(`${API_URL}api/schedule/clear`);
-
-          if (response.ok) {
-            toast("Reset schedule successfully", 2000);
-          }
-        } catch {
-          toast("Failed to reset schedule", 2000);
-        }
-      }}
+      onClick={reset}
       class="w-full bg-gray-600 hover:bg-gray-700 text-white border-0 px-3 py-2 text-sm cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded"
     >
       Reset Scheduler
@@ -35,46 +49,12 @@ export const ResetScheduleButton = () => {
 
 export const ToggleScheduleButton = () => {
   const [store] = useStore();
-  const { toast } = useToast();
+  const { toggle } = useScheduleControls();
 
   return (
     <button
       type="button"
-      onClick={async () => {
-        if (store.isActiveScheduler) {
-          try {
-            const response = await fetch(`${API_URL}api/schedule/stop`);
-
-            if (response.ok) {
-              toast("Stopped schedule successfully", 2000);
-            }
-          } catch {
-            toast("Failed to stop schedule", 2000);
-          }
-        } else {
-          if (store.schedule.length === 0) {
-            toast("Cannot start empty schedule", 2000);
-            return;
-          }
-
-          try {
-            const response = await fetch(`${API_URL}api/schedule`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-              },
-              body: `schedule=${JSON.stringify(store.schedule)}`,
-            });
-
-            if (response.ok) {
-              toast("Schedule started successfully", 2000);
-            }
-          } catch (error) {
-            console.error("Failed to start schedule:", error);
-            toast("Failed to start schedule", 2000);
-          }
-        }
-      }}
+      onClick={toggle}
       class="w-full bg-gray-600 text-white border-0 px-3 py-2 text-sm cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded"
     >
       {store.isActiveScheduler ? "Stop Scheduler" : "Start Scheduler"}
@@ -84,7 +64,7 @@ export const ToggleScheduleButton = () => {
 
 const Scheduler: Component = () => {
   const [store, actions] = useStore();
-  const { toast } = useToast();
+  const { toggle: handleToggleScheduler } = useScheduleControls();
 
   const handleAddItem = () => {
     const defaultPluginId = store.plugins.length > 0 ? store.plugins[0].id : 1;
@@ -105,42 +85,6 @@ const Scheduler: Component = () => {
     actions.setSchedule(
       store.schedule.map((item, i) => (i === index ? { ...item, duration } : item)),
     );
-  };
-
-  const handleToggleScheduler = async () => {
-    if (store.isActiveScheduler) {
-      try {
-        const response = await fetch(`${API_URL}api/schedule/stop`);
-
-        if (response.ok) {
-          toast("Stopped schedule successfully", 2000);
-        }
-      } catch {
-        toast("Failed to stop schedule", 2000);
-      }
-    } else {
-      if (store.schedule.length === 0) {
-        toast("Cannot start empty schedule", 2000);
-        return;
-      }
-
-      try {
-        const response = await fetch(`${API_URL}api/schedule`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: `schedule=${JSON.stringify(store.schedule)}`,
-        });
-
-        if (response.ok) {
-          toast("Schedule started successfully", 2000);
-        }
-      } catch (error) {
-        console.error("Failed to start schedule:", error);
-        toast("Failed to start schedule", 2000);
-      }
-    }
   };
 
   return (

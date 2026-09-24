@@ -214,11 +214,11 @@ export const Sidebar: Component<SidebarProps> = (props) => {
         </a>
 
         <a
-          href="/update"
+          href="#/device"
           class="inline-flex items-center text-gray-700 hover:text-gray-900 font-medium"
         >
-          <i class="fa-solid fa-download mr-2" />
-          Firmware Update
+          <i class="fa-solid fa-sliders mr-2" />
+          Device, Settings &amp; Firmware
         </a>
       </div>
     </>
