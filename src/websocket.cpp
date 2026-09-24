@@ -1,152 +1,134 @@
-#include "websocket.h"
+#include "PluginManager.h"
+#include "scheduler.h"
 
 #ifdef ENABLE_SERVER
 
 AsyncWebSocket ws("/ws");
 
-void sendStateAndInfo()
+void sendInfo()
 {
-  DynamicJsonDocument jsonDocument(6144);
-  if (currentMode == NONE)
+  JsonDocument jsonDocument;
+  for (int j = 0; j < ROWS * COLS; j++)
   {
-    for (int j = 0; j < ROWS * COLS; j++)
-    {
-      jsonDocument["data"][j] = Screen.getRenderBuffer()[j];
-    }
+    jsonDocument["data"][j] = Screen.getRenderBuffer()[j];
   }
-  jsonDocument["mode"] = currentMode;
+
+  jsonDocument["status"] = currentStatus;
+  jsonDocument["plugin"] = pluginManager.getActivePlugin()->getId();
+  jsonDocument["persist-plugin"] = pluginManager.getPersistedPluginId();
   jsonDocument["event"] = "info";
   jsonDocument["rotation"] = Screen.currentRotation;
+  jsonDocument["brightness"] = Screen.getCurrentBrightness();
+  jsonDocument["scheduleActive"] = Scheduler.isActive;
 
+  JsonArray scheduleArray = jsonDocument["schedule"].to<JsonArray>();
+  for (const auto &item : Scheduler.schedule)
+  {
+    JsonObject scheduleItem = scheduleArray.add<JsonObject>();
+    scheduleItem["pluginId"] = item.pluginId;
+    scheduleItem["duration"] = item.duration / 1000; // Convert milliseconds to seconds
+  }
+
+  JsonArray plugins = jsonDocument["plugins"].to<JsonArray>();
+
+  std::vector<Plugin *> &allPlugins = pluginManager.getAllPlugins();
+  for (Plugin *plugin : allPlugins)
+  {
+    JsonObject object = plugins.add<JsonObject>();
+
+    object["id"] = plugin->getId();
+    object["name"] = plugin->getName();
+  }
   String output;
   serializeJson(jsonDocument, output);
   ws.textAll(output);
+  jsonDocument.clear();
 }
 
-void sendModeToAllClients(MODE mode)
+void sendLiveFrame()
 {
-  DynamicJsonDocument jsonDocument(6144);
+  if (ws.count() == 0 || !ws.availableForWriteAll())
+  {
+    return;
+  }
 
-  jsonDocument["event"] = "mode";
-  jsonDocument["mode"] = mode;
-  jsonDocument["rotation"] = Screen.currentRotation;
-
-  String output;
-  serializeJson(jsonDocument, output);
-  ws.textAll(output);
+  uint8_t frame[ROWS * COLS];
+  memcpy(frame, Screen.getRenderBuffer(), sizeof(frame));
+  ws.binaryAll(frame, sizeof(frame));
 }
 
-void onWsEvent(
-    AsyncWebSocket *server,
-    AsyncWebSocketClient *client,
-    AwsEventType type,
-    void *arg,
-    uint8_t *data,
-    size_t len)
+void sendWSMessage(String &message) {
+  ws.textAll(message);
+}
+
+void onWsEvent(AsyncWebSocket *server,
+               AsyncWebSocketClient *client,
+               AwsEventType type,
+               void *arg,
+               uint8_t *data,
+               size_t len)
 {
   if (type == WS_EVT_CONNECT)
   {
-    sendStateAndInfo();
+    sendInfo();
   }
 
   if (type == WS_EVT_DATA)
   {
     AwsFrameInfo *info = (AwsFrameInfo *)arg;
-    if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT)
+    if (info->final && info->index == 0 && info->len == len)
     {
-      data[len] = 0;
-
-      DynamicJsonDocument wsRequest(6144);
-      DeserializationError error = deserializeJson(wsRequest, data);
-
-      if (error)
+      if (info->opcode == WS_BINARY && currentStatus == WSBINARY && info->len == 256)
       {
-        Serial.print(F("deserializeJson() failed: "));
-        Serial.println(error.f_str());
-        return;
+        Screen.setRenderBuffer(data, true);
       }
-      else
+      else if (info->opcode == WS_TEXT)
       {
-        const char *event = wsRequest["event"];
-        if (!strcmp(event, "upload"))
-        {
-          if (currentMode != LOADING)
-          {
-            currentMode = LOADING;
-            int size = (int)wsRequest["screens"];
+        data[len] = 0;
 
-            customAnimationFrames.resize(size);
-            for (int i = 0; i < size; i++)
-            {
-              for (int k = 0; k < 32; k++)
-              {
-                if (k == 0)
-                {
-                  customAnimationFrames[i].resize(32);
-                }
-                customAnimationFrames[i][k] = (int)wsRequest["data"][i][k];
-              }
-            }
-            setMode(CUSTOM, true);
-          }
-        }
-        else if (!strcmp(event, "mode"))
-        {
-          MODE mode = getModeByString(wsRequest["mode"]);
-          setModeByString(wsRequest["mode"], sendModeToAllClients);
+        JsonDocument wsRequest;
+        DeserializationError error = deserializeJson(wsRequest, data);
 
-          if (mode == NONE)
-          {
-            sendStateAndInfo();
-          }
-        }
-        else if (!strcmp(event, "persist-mode"))
+        if (error)
         {
-          persistMode();
+          Serial.print(F("deserializeJson() failed: "));
+          Serial.println(error.f_str());
+          return;
         }
-        else if (!strcmp(event, "rotate"))
+        else
         {
-          bool isRight = (bool)!strcmp(wsRequest["direction"], "right");
-          Screen.rotate(Screen.currentRotation + (90 * (isRight ? 1 : -1)));
-          Screen.render();
-        }
-        else if (!strcmp(event, "info"))
-        {
-          sendStateAndInfo();
-        }
+          pluginManager.getActivePlugin()->websocketHook(wsRequest);
 
-        if (currentMode == NONE)
-        {
-          if (!strcmp(event, "clear"))
+          const char *event = wsRequest["event"];
+
+          if (!strcmp(event, "plugin"))
           {
-            Screen.clear();
+            int pluginId = wsRequest["plugin"];
+
+            Scheduler.clearSchedule();
+            pluginManager.setActivePluginById(pluginId);
+            sendInfo();
           }
-          else if (!strcmp(event, "led"))
+          else if (!strcmp(event, "persist-plugin"))
           {
-            Screen.setPixelAtIndex(wsRequest["index"], wsRequest["status"]);
-            Screen.render();
+            pluginManager.persistActivePlugin();
+            sendInfo();
           }
-          else if (!strcmp(event, "screen"))
+          else if (!strcmp(event, "rotate"))
           {
-            uint8_t buffer[ROWS * COLS];
-            for (int i = 0; i < ROWS * COLS; i++)
-            {
-              buffer[i] = wsRequest["data"][i];
-            }
-            Screen.setRenderBuffer(buffer);
-            delay(10);
-            Screen.render();
+            bool isRight = (bool)!strcmp(wsRequest["direction"], "right");
+            Screen.setCurrentRotation((Screen.currentRotation + (isRight ? 1 : 3)) % 4, true);
+            sendInfo();
           }
-          else if (!strcmp(event, "persist"))
+          else if (!strcmp(event, "info"))
           {
-            Screen.persist();
+            sendInfo();
           }
-          else if (!strcmp(event, "load"))
+          else if (!strcmp(event, "brightness"))
           {
-            Screen.loadFromStorage();
-            delay(10);
-            Screen.render();
-            sendStateAndInfo();
+            uint8_t brightness = wsRequest["brightness"].as<uint8_t>();
+            Screen.setBrightness(brightness, true);
+            sendInfo();
           }
         }
       }

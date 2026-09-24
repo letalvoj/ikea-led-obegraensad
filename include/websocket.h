@@ -4,21 +4,18 @@
 
 #ifdef ENABLE_SERVER
 #include <ESPAsyncWebServer.h>
-#include <ArduinoJson.h>
 
 #include "storage.h"
-#include "screen.h"
-#include "mode/mode.h"
 
-void onWsEvent(
-    AsyncWebSocket *server,
-    AsyncWebSocketClient *client,
-    AwsEventType type,
-    void *arg,
-    uint8_t *data,
-    size_t len);
-void sendStateAndInfo();
-void sendModeToAllClients();
+void onWsEvent(AsyncWebSocket *server,
+               AsyncWebSocketClient *client,
+               AwsEventType type,
+               void *arg,
+               uint8_t *data,
+               size_t len);
+void sendInfo();
+void sendLiveFrame();
+void sendWSMessage(String &message);
 void initWebsocketServer(AsyncWebServer &server);
 void cleanUpClients();
 

@@ -1,0 +1,14 @@
+services:
+  node:
+    image: "node:alpine"
+    volumes:
+      - ./:/home/node/app
+    working_dir: /home/node/app/frontend
+    stdin_open: true
+    tty: true
+    command: >
+      sh -c "
+      apk add --no-cache --no-progress libc6-compat &&
+      corepack enable &&
+      corepack prepare pnpm@latest --activate &&
+      pnpm install --frozen-lockfile && pnpm run build"

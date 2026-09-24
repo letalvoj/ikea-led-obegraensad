@@ -1,30 +1,31 @@
+const MATRIX_SIZE = 16;
+const BRIGHTNESS_THRESHOLD = 383;
+
 export const loadImageAndGetDataArray = (cb: (data: number[]) => void) => {
-  const matrixSize = 16;
-  const tempFileInput = document.createElement('input');
-  tempFileInput.type = 'file';
+  const tempFileInput = document.createElement("input");
+  tempFileInput.type = "file";
   tempFileInput.click();
 
   tempFileInput.onchange = (e: Event) => {
     if (!e.target) return;
-    const file = (e.target as HTMLInputElement).files?.[0]!;
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = () => {
-      const image = new Image(matrixSize, matrixSize);
+      const image = new Image(MATRIX_SIZE, MATRIX_SIZE);
       image.src = reader.result as string;
       image.onload = () => {
-        const canvas = new OffscreenCanvas(matrixSize, matrixSize);
-        const ctx = canvas.getContext('2d');
+        const canvas = new OffscreenCanvas(MATRIX_SIZE, MATRIX_SIZE);
+        const ctx = canvas.getContext("2d");
 
-        ctx?.drawImage(image, 0, 0, matrixSize, matrixSize);
-        const imgData = ctx?.getImageData(0, 0, matrixSize, matrixSize);
+        ctx?.drawImage(image, 0, 0, MATRIX_SIZE, MATRIX_SIZE);
+        const imgData = ctx?.getImageData(0, 0, MATRIX_SIZE, MATRIX_SIZE);
         if (imgData) {
           const data: number[] = [];
-          for (var i = 0; i < imgData.data.length; i += 4) {
-            const isActive =
-              imgData.data[i] + imgData.data[i + 1] + imgData.data[i + 2] <= 383
-                ? 1
-                : 0;
+          for (let i = 0; i < imgData.data.length; i += 4) {
+            const pixelBrightness = imgData.data[i] + imgData.data[i + 1] + imgData.data[i + 2];
+            const isActive = pixelBrightness <= BRIGHTNESS_THRESHOLD ? 1 : 0;
             data.push(isActive);
           }
 
@@ -35,46 +36,33 @@ export const loadImageAndGetDataArray = (cb: (data: number[]) => void) => {
   };
 };
 
-export const rotateArrayByDegree = (data: number[], degree: number) => {
-  const numRotations = degree / 90;
-  const isRight = numRotations > 0;
+export const rotateArray = (matrix: number[], rotations: number) => {
+  const SIZE = MATRIX_SIZE;
+  // Normalize rotations to 0-3 (4 rotations = 360° = no rotation)
+  const normalizedRotations = ((rotations % 4) + 4) % 4;
 
-  [...new Array(Math.abs(numRotations))].forEach(() => {
-    data = rotateArray(data, isRight);
-  });
+  let newState = [...matrix];
 
-  return data;
-};
+  const swap = (arr: number[], i: number, j: number) => {
+    const temp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = temp;
+  };
 
-export const rotateArray = (matrix: number[], turnRight = false) => {
-  const SIZE = 16;
-  const newState = [...matrix];
-  for (let i = 0; i < SIZE; i++) {
-    for (let j = i; j < SIZE; j++) {
-      let temp = newState[i * SIZE + j];
-      newState[i * SIZE + j] = newState[j * SIZE + i];
-      newState[j * SIZE + i] = temp;
-    }
-  }
-
-  for (let i = 0; i < SIZE; i++) {
-    let col1 = 0;
-    let col2 = SIZE - 1;
-    while (col1 < col2) {
-      let index1 = i * SIZE + col1;
-      let index2 = i * SIZE + col2;
-      if (!turnRight) {
-        index1 = col1 * SIZE + i;
-        index2 = col2 * SIZE + i;
+  // Perform the rotation normalizedRotations times
+  for (let r = 0; r < normalizedRotations; r++) {
+    const tempState = [...newState];
+    for (let row = 0; row < SIZE / 2; row++) {
+      for (let col = row; col < SIZE - row - 1; col++) {
+        // Rotate 90 degrees clockwise by swapping 4 positions
+        swap(tempState, row * SIZE + col, col * SIZE + (SIZE - 1 - row));
+        swap(tempState, row * SIZE + col, (SIZE - 1 - row) * SIZE + (SIZE - 1 - col));
+        swap(tempState, row * SIZE + col, (SIZE - 1 - col) * SIZE + row);
       }
-
-      let temp = newState[index1];
-      newState[index1] = newState[index2];
-      newState[index2] = temp;
-      col1++;
-      col2--;
     }
+    newState = tempState;
   }
+
   return newState;
 };
 
@@ -92,8 +80,4 @@ export const chunkArray = (input: number[], size: number) =>
   }, []);
 
 export const matrixToHexArray = (matrix: number[]) =>
-  chunkArray(matrix, 8).map(
-    (chunk) => parseInt(parseInt(chunk.join(''), 2).toString(), 10)
-    // (chunk) => parseInt(chunk.join(''), 2).toString(16)
-    //.padStart(4, '0x')
-  );
+  chunkArray(matrix, 8).map((chunk) => parseInt(parseInt(chunk.join(""), 2).toString(), 10));

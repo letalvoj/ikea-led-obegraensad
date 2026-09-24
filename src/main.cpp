@@ -1,21 +1,164 @@
 #include <Arduino.h>
-#include <WiFi.h>
+#include <BfButton.h>
+#include <SPI.h>
 
-#include "constants.h"
-#include "mode/mode.h"
-#include "websocket.h"
-#include "secrets.h"
-#include "ota.h"
-#include "webserver.h"
-#include "screen.h"
-#include "accelerometer.h"
-#include "mode/mode.h"
-
-#ifdef ENABLE_ACCELEROMETER
-Accelerometer accelerometer;
+#ifdef ESP8266
+/* Fix duplicate defs of HTTP_GET, HTTP_POST, ... in ESPAsyncWebServer.h */
+#define WEBSERVER_H
 #endif
 
-void setup()
+#include <WiFiManager.h>
+
+#ifdef ESP32
+#include <ESPmDNS.h>
+#endif
+#ifdef ESP8266
+#include <ESP8266WiFi.h>
+#endif
+
+#include "PluginManager.h"
+#include "config.h"
+#include "scheduler.h"
+
+#include "plugins/ArtNet.h"
+#include "plugins/Blob.h"
+#include "plugins/BreakoutPlugin.h"
+#include "plugins/BubblesPlugin.h"
+#include "plugins/CheckerboardPlugin.h"
+#include "plugins/CirclePlugin.h"
+#include "plugins/CometPlugin.h"
+#include "plugins/DDPPlugin.h"
+#include "plugins/DrawPlugin.h"
+#include "plugins/FirefliesPlugin.h"
+#include "plugins/FireworkPlugin.h"
+#include "plugins/GameOfLifePlugin.h"
+#include "plugins/LinesPlugin.h"
+#include "plugins/MatrixRainPlugin.h"
+#include "plugins/MeteorShowerPlugin.h"
+#include "plugins/PongClockPlugin.h"
+#include "plugins/RadarPlugin.h"
+#include "plugins/RainPlugin.h"
+#include "plugins/ScanlinesPlugin.h"
+#include "plugins/SnakePlugin.h"
+#include "plugins/SparkleFieldPlugin.h"
+#include "plugins/SpiralPlugin.h"
+#include "plugins/StarsPlugin.h"
+#include "plugins/TickingClockPlugin.h"
+#include "plugins/WaveBarsPlugin.h"
+#include "plugins/WavePlugin.h"
+
+#ifdef ENABLE_SERVER
+#include "plugins/AnimationPlugin.h"
+#include "plugins/BigClockPlugin.h"
+#include "plugins/ClockPlugin.h"
+#include "plugins/WeatherPlugin.h"
+#endif
+
+#include "asyncwebserver.h"
+#include "messages.h"
+#include "ota.h"
+#include "screen.h"
+#include "secrets.h"
+#include "websocket.h"
+
+BfButton btn(BfButton::STANDALONE_DIGITAL, PIN_BUTTON, true, LOW);
+
+unsigned long previousMillis = 0;
+unsigned long interval = 30000;
+
+PluginManager pluginManager;
+#ifdef ESP32
+DRAM_ATTR volatile SYSTEM_STATUS currentStatus = NONE;
+#else
+volatile SYSTEM_STATUS currentStatus = NONE;
+#endif
+WiFiManager wifiManager;
+
+// SNTP stores the pointer it is given instead of copying the string, so these
+// have to outlive the configTzTime() call below.
+String ntpServer;
+String tzInfo;
+
+unsigned long lastConnectionAttempt = 0;
+const unsigned long connectionInterval = 10000;
+unsigned long reconnectionBackoff = 5000;            // Start with 5 seconds
+const unsigned long maxReconnectionBackoff = 300000; // Max 5 minutes
+uint8_t reconnectionAttempts = 0;
+
+void connectToWiFi()
+{
+  // if a WiFi setup AP was started, reboot is required to clear routes
+  bool wifiWebServerStarted = false;
+  wifiManager.setWebServerCallback([&wifiWebServerStarted]() { wifiWebServerStarted = true; });
+
+  wifiManager.setHostname(WIFI_HOSTNAME);
+
+#if defined(IP_ADDRESS) && defined(GWY) && defined(SUBNET) && defined(DNS1)
+  auto ip = IPAddress();
+  ip.fromString(IP_ADDRESS);
+
+  auto gwy = IPAddress();
+  gwy.fromString(GWY);
+
+  auto subnet = IPAddress();
+  subnet.fromString(SUBNET);
+
+  auto dns = IPAddress();
+  dns.fromString(DNS1);
+
+  wifiManager.setSTAStaticIPConfig(ip, gwy, subnet, dns);
+#endif
+
+  wifiManager.setConnectRetries(10);
+  wifiManager.setConnectTimeout(10);
+  wifiManager.setConfigPortalTimeout(180);
+  wifiManager.setWiFiAutoReconnect(true);
+  wifiManager.autoConnect(WIFI_MANAGER_SSID);
+
+#ifdef ESP32
+  if (MDNS.begin(WIFI_HOSTNAME))
+  {
+    MDNS.addService("http", "tcp", 80);
+    MDNS.setInstanceName(WIFI_HOSTNAME);
+  }
+  else
+  {
+    Serial.println("Could not start mDNS!");
+  }
+#endif
+
+  if (wifiWebServerStarted)
+  {
+    // Reboot required, otherwise wifiManager server interferes with our server
+    Serial.println("Done running WiFi Manager webserver - rebooting");
+    ESP.restart();
+  }
+
+  lastConnectionAttempt = millis();
+}
+
+void pressHandler(BfButton *btn, BfButton::press_pattern_t pattern)
+{
+  switch (pattern)
+  {
+  case BfButton::SINGLE_PRESS:
+    if (currentStatus != LOADING)
+    {
+      Scheduler.clearSchedule();
+      pluginManager.activateNextPlugin();
+    }
+    break;
+
+  case BfButton::LONG_PRESS:
+    if (currentStatus != LOADING)
+    {
+      pluginManager.activatePersistedPlugin();
+    }
+    break;
+  }
+}
+
+void baseSetup()
 {
   Serial.begin(115200);
 
@@ -23,60 +166,179 @@ void setup()
   pinMode(PIN_CLOCK, OUTPUT);
   pinMode(PIN_DATA, OUTPUT);
   pinMode(PIN_ENABLE, OUTPUT);
-  pinMode(PIN_BUTTON, INPUT_PULLUP);
 
-  Screen.clear();
-  loadMode();
-  Screen.loadFromStorage();
+#if !defined(ESP32) && !defined(ESP8266)
+  Screen.setup();
+#endif
+
+  // Initialize configuration system (always safe)
+  config.begin();
 
 // server
 #ifdef ENABLE_SERVER
-  // wifi
-  int attempts = 0;
-  WiFi.setHostname(WIFI_HOSTNAME);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED && attempts < 7)
-  {
-    delay(500);
-    Serial.print(".");
-    attempts++;
-  }
-  if (WiFi.status() != WL_CONNECTED)
-  {
-    Serial.println("Resetting");
-    ESP.restart();
-  }
-  else
-  {
-    Serial.println("");
-    Serial.print("Connected to WiFi network with IP Address: ");
-    Serial.println(WiFi.localIP());
-  }
+  connectToWiFi();
 
-  // set time server
-  configTzTime(TZ_INFO, NTP_SERVER);
+  // set time server using config values
+  // NOTE: lwIP SNTP stores the server-name pointer without copying it, so the
+  // String must outlive this call. Keep them static so their buffers persist.
+  static String tzInfo = config.getTzInfo();
+  static String ntpServer = config.getNtpServer();
+  configTzTime(tzInfo.c_str(), ntpServer.c_str());
 
   initOTA(server);
   initWebsocketServer(server);
   initWebServer();
 #endif
 
-// uncomment to figure out the initial parameters
-#ifdef ENABLE_ACCELEROMETER
-  // accelerometer.startCalibration();
-  accelerometer.setup();
+  pluginManager.addPlugin(new DrawPlugin());
+  pluginManager.addPlugin(new BreakoutPlugin());
+  pluginManager.addPlugin(new SnakePlugin());
+  pluginManager.addPlugin(new GameOfLifePlugin());
+  pluginManager.addPlugin(new StarsPlugin());
+  pluginManager.addPlugin(new LinesPlugin());
+  pluginManager.addPlugin(new CirclePlugin());
+  pluginManager.addPlugin(new RainPlugin());
+  pluginManager.addPlugin(new MatrixRainPlugin());
+  pluginManager.addPlugin(new FireworkPlugin());
+  pluginManager.addPlugin(new BlobPlugin());
+  pluginManager.addPlugin(new SpiralPlugin());
+  pluginManager.addPlugin(new WavePlugin());
+  pluginManager.addPlugin(new CheckerboardPlugin());
+  pluginManager.addPlugin(new RadarPlugin());
+  pluginManager.addPlugin(new BubblesPlugin());
+  pluginManager.addPlugin(new CometPlugin());
+  pluginManager.addPlugin(new FirefliesPlugin());
+  pluginManager.addPlugin(new MeteorShowerPlugin());
+  pluginManager.addPlugin(new ScanlinesPlugin());
+  pluginManager.addPlugin(new SparkleFieldPlugin());
+  pluginManager.addPlugin(new WaveBarsPlugin());
+
+#ifdef ENABLE_SERVER
+  pluginManager.addPlugin(new BigClockPlugin());
+  pluginManager.addPlugin(new ClockPlugin());
+  pluginManager.addPlugin(new PongClockPlugin());
+  pluginManager.addPlugin(new TickingClockPlugin());
+  pluginManager.addPlugin(new WeatherPlugin());
+  pluginManager.addPlugin(new AnimationPlugin());
+  pluginManager.addPlugin(new DDPPlugin());
+  pluginManager.addPlugin(new ArtNetPlugin());
 #endif
+
+  Screen.clear();
+  pluginManager.init();
+  Scheduler.init();
+
+  btn.onPress(pressHandler).onDoublePress(pressHandler).onPressFor(pressHandler, 1000);
 }
+
+#ifdef ESP32
+TaskHandle_t screenDrawingTaskHandle = NULL;
+
+void screenDrawingTask(void *parameter)
+{
+  Screen.setup();
+  for (;;)
+  {
+    pluginManager.runActivePlugin();
+    vTaskDelay(1);
+  }
+}
+
+void setup()
+{
+  baseSetup();
+  xTaskCreatePinnedToCore(screenDrawingTask,
+                          "screenDrawingTask",
+                          10000,
+                          NULL,
+                          1,
+                          &screenDrawingTaskHandle,
+                          0);
+}
+#endif
+#ifdef ESP8266
+void screenDrawingTask()
+{
+  Screen.setup();
+  pluginManager.runActivePlugin();
+  yield();
+}
+
+void setup()
+{
+  baseSetup();
+  Scheduler.start();
+}
+#endif
 
 void loop()
 {
-#ifdef ENABLE_ACCELEROMETER
-  accelerometer.loop();
-#endif
-  loopOfAllModes();
+  static uint8_t taskCounter = 0;
+
+  btn.read();
 
 #ifdef ENABLE_SERVER
+  ElegantOTA.loop();
+#endif
+
+#if !defined(ESP32) && !defined(ESP8266)
+  pluginManager.runActivePlugin();
+#endif
+
+  if (currentStatus == NONE)
+  {
+    Scheduler.update();
+
+    if ((taskCounter & 0x03) == 0)
+    {
+      Messages.scrollMessageEveryMinute();
+    }
+  }
+
+  // Check WiFi less frequently with exponential backoff
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    unsigned long currentMillis = millis();
+    if (currentMillis - lastConnectionAttempt >= reconnectionBackoff)
+    {
+      Serial.println("WiFi disconnected, attempting reconnection...");
+      connectToWiFi();
+
+      // Exponential backoff: double the wait time, up to max
+      reconnectionAttempts++;
+      reconnectionBackoff = min(reconnectionBackoff * 2, maxReconnectionBackoff);
+    }
+  }
+  else
+  {
+    if (reconnectionAttempts > 0)
+    {
+      Serial.println("WiFi reconnected successfully");
+      reconnectionAttempts = 0;
+      reconnectionBackoff = 5000;
+    }
+  }
+
+  taskCounter++;
+  if (taskCounter > 16)
+  {
+    taskCounter = 0;
+  }
+
+#ifdef ENABLE_SERVER
+  static unsigned long lastLiveFrameMillis = 0;
+  const unsigned long currentMillis = millis();
+  if (currentMillis - lastLiveFrameMillis >= 100)
+  {
+    lastLiveFrameMillis = currentMillis;
+    sendLiveFrame();
+  }
+
   cleanUpClients();
 #endif
-  delay(20);
+#ifdef ESP32
+  vTaskDelay(1);
+#else
+  delay(1);
+#endif
 }
