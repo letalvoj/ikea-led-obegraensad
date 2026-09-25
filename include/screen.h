@@ -43,6 +43,9 @@ public:
   Screen_(const Screen_ &) = delete;
   Screen_ &operator=(const Screen_ &) = delete;
 
+  // number of frames shifted out to the panel, for diagnostics
+  volatile uint32_t renderCount = 0;
+
   int currentRotation;
   void setCurrentRotation(int rotation, bool shouldPersist = false);
 

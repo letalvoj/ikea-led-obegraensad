@@ -290,6 +290,7 @@ IRAM_ATTR void Screen_::_render()
   digitalWrite(PIN_LATCH, LOW);
   SPI.writeBytes(bits, sizeof(spi_bits));
   digitalWrite(PIN_LATCH, HIGH);
+  renderCount = renderCount + 1;
 #ifdef ESP8266
   timer1_write(100);
 #endif

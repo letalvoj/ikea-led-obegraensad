@@ -140,6 +140,7 @@ void PluginManager::setActivePlugin(const char *pluginName)
   {
     if (strcmp(plugin->getName(), pluginName) == 0)
     {
+      Serial.printf("[Plugins] activating %d %s\n", plugin->getId(), plugin->getName());
       currentStatus = LOADING; // Prevent plugin loop from drawing during ID display
       activePlugin = plugin;
       renderPluginId(activePlugin->getId());

@@ -84,6 +84,9 @@ constexpr uint16_t TOTAL_PIXELS = ROWS * COLS;
 // a freshly flashed OTA image is rolled back unless it keeps running this long
 #define OTA_ROLLBACK_GRACE_MS 30000
 
+// period of the one-line status report on the serial console
+#define DIAG_LOG_INTERVAL_MS 5000
+
 // use ALL of the following to use static IP config
 /*
 #define IP_ADDRESS "192.168.0.250"

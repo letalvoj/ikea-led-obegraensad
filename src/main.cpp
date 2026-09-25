@@ -93,6 +93,42 @@ void markFirmwareHealthy()
 }
 #endif
 
+// One status line on the serial console every few seconds, to see from the outside
+// whether the loop, the screen refresh, the button and the radios are alive.
+void logHeartbeat()
+{
+  static unsigned long lastLog = 0;
+  static uint32_t lastRenders = 0;
+  static uint32_t loops = 0;
+  loops++;
+
+  if (millis() - lastLog < DIAG_LOG_INTERVAL_MS)
+  {
+    return;
+  }
+  lastLog = millis();
+
+  uint32_t renders = Screen.renderCount;
+  Plugin *plugin = pluginManager.getActivePlugin();
+  JsonDocument info;
+  buildDeviceInfo(info);
+  Serial.printf("[Diag] up %lus | mode %d %s | status %d | brightness %u | screen %lu frames "
+                "(+%lu) | button pin %d | loops %lu | heap %u | wifi %s | ble %s\n",
+                millis() / 1000,
+                plugin ? plugin->getId() : -1,
+                plugin ? plugin->getName() : "-",
+                currentStatus,
+                Screen.getCurrentBrightness(),
+                (unsigned long)renders,
+                (unsigned long)(renders - lastRenders),
+                digitalRead(PIN_BUTTON),
+                (unsigned long)loops,
+                ESP.getFreeHeap(),
+                info["wifi"]["state"] | "?",
+                info["ble"]["paired"] ? "paired" : (info["ble"]["connected"] ? "connected" : "idle"));
+  lastRenders = renders;
+}
+
 // Everything that needs a network. Runs once, the first time WiFi connects.
 void startNetworkServices()
 {
@@ -123,6 +159,7 @@ void startNetworkServices()
 
 void pressHandler(BfButton *btn, BfButton::press_pattern_t pattern)
 {
+  Serial.printf("[Button] pattern %d, status %d\n", pattern, currentStatus);
   switch (pattern)
   {
   case BfButton::SINGLE_PRESS:
@@ -223,6 +260,7 @@ TaskHandle_t screenDrawingTaskHandle = NULL;
 void screenDrawingTask(void *parameter)
 {
   Screen.setup();
+  Serial.printf("[Screen] refresh running on core %d\n", xPortGetCoreID());
   for (;;)
   {
     pluginManager.runActivePlugin();
@@ -273,6 +311,7 @@ void loop()
   bleLoop();
 #endif
   commandsLoop();
+  logHeartbeat();
 
 #if !defined(ESP32) && !defined(ESP8266)
   pluginManager.runActivePlugin();

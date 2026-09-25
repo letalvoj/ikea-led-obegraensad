@@ -88,7 +88,10 @@ void Messages_::scrollMessageEveryMinute()
 {
   struct tm timeinfo;
 
-  if (getLocalTime(&timeinfo))
+  // getLocalTime() waits up to 5 s by default for the clock to be set; without
+  // WiFi/NTP that would stall the main loop, so only check. The clock plugins do
+  // the same.
+  if (getLocalTime(&timeinfo, 0))
   {
     if (timeinfo.tm_min != previousMinute)
     {
