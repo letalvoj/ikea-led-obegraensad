@@ -21,10 +21,7 @@ export const AnimationSettings: Component<AnimationSettingsProps> = (props) => {
   return (
     <div class="space-y-3">
       <div class="space-y-2">
-        <label
-          for={props.frameDurationId}
-          class="text-sm font-semibold text-gray-700 uppercase tracking-wide"
-        >
+        <label for={props.frameDurationId} class="section-title">
           Frame Duration
         </label>
         <div class="flex items-center gap-2">
@@ -36,7 +33,7 @@ export const AnimationSettings: Component<AnimationSettingsProps> = (props) => {
             step={FRAME_DELAY_STEP_MS}
             value={props.animationDelayMs}
             onInput={(e) => props.onDelayChange(Number.parseInt(e.currentTarget.value, 10))}
-            class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            class="flex-1 h-2 bg-line rounded-lg appearance-none cursor-pointer accent-brand"
           />
           <input
             type="number"
@@ -54,13 +51,13 @@ export const AnimationSettings: Component<AnimationSettingsProps> = (props) => {
                 props.onDelayChange(value);
               }
             }}
-            class="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-16 px-2 py-1 text-xs border border-line rounded focus:outline-none focus:ring-2 focus:ring-brand"
           />
-          <span class="text-xs text-gray-500 whitespace-nowrap">ms</span>
+          <span class="text-xs text-muted whitespace-nowrap">ms</span>
         </div>
       </div>
 
-      <div class="text-xs text-gray-500 space-y-1">
+      <div class="text-xs text-muted space-y-1">
         <p>
           <strong>Frames:</strong> {props.totalFrames}
         </p>

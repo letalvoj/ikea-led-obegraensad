@@ -287,9 +287,11 @@ waits for WiFi: it starts drawing right away, tries the saved network in the bac
 opens the `IKEA` setup access point without blocking. WiFi can be switched off entirely on the
 Device page.
 
-- **Web page:** build it with `cd frontend && pnpm build:ble` (output in `frontend/dist-ble`), or
-  let the `Bluetooth Page` workflow publish it to GitHub Pages together with the latest
-  `esp32dev` firmware. It needs Chrome or Edge (Web Bluetooth) and HTTPS or `localhost`.
+- **Web page:** hosted at <https://letalvoj.github.io/obegraensad-bt-client/>, together with the
+  latest `esp32dev` firmware. Build it with `cd frontend && pnpm build:ble` (output in
+  `frontend/dist-ble`); `scripts/publish-bt-client.sh <site checkout>` rebuilds page and
+  firmware into the `letalvoj.github.io` repository. It needs Chrome or Edge (Web Bluetooth)
+  and HTTPS or `localhost`.
 - **Pairing:** the first connection asks for a code, enter `003762` (`BLE_PASSKEY` in
   `include/constants.h`). Every characteristic requires the authenticated pairing.
 - **Clock:** the page sets the lamp's clock on every connect, so the clock plugins work without

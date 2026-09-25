@@ -19,19 +19,19 @@ import type { DeviceConfig } from "./types";
 const DEVICE_INFO_REFRESH_MS = 5000;
 
 const inputClass =
-  "w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 outline-none";
+  "w-full px-3 py-2 bg-paper border border-line rounded focus:ring-2 focus:ring-brand outline-none";
 
 const Card: Component<{ title: string; children: JSX.Element }> = (props) => (
-  <section class="bg-white p-4 lg:p-6 rounded-md space-y-4">
-    <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">{props.title}</h3>
+  <section class="bg-white p-4 lg:p-6 space-y-4">
+    <h3 class="section-title">{props.title}</h3>
     {props.children}
   </section>
 );
 
 const Row: Component<{ label: string; children: JSX.Element }> = (props) => (
   <div class="flex justify-between gap-4 text-sm">
-    <span class="text-gray-500">{props.label}</span>
-    <span class="text-gray-900 text-right break-all">{props.children}</span>
+    <span class="text-muted">{props.label}</span>
+    <span class="text-ink text-right break-all">{props.children}</span>
   </div>
 );
 
@@ -54,7 +54,7 @@ const DeviceInfoCard: Component = () => {
 
   return (
     <Card title="Device">
-      <Show when={store.device} fallback={<p class="text-sm text-gray-500">Loading...</p>}>
+      <Show when={store.device} fallback={<p class="text-sm text-muted">Loading...</p>}>
         {(device) => (
           <div class="space-y-1">
             <Row label="Firmware">{device().firmware}</Row>
@@ -128,7 +128,7 @@ const SettingsCard: Component = () => {
 
   return (
     <Card title="Settings">
-      <Show when={draft()} fallback={<p class="text-sm text-gray-500">Loading...</p>}>
+      <Show when={draft()} fallback={<p class="text-sm text-muted">Loading...</p>}>
         {(config) => (
           <div class="space-y-3">
             <label class="flex items-center gap-2 text-sm">
@@ -306,12 +306,12 @@ const FirmwareCard: Component = () => {
       <Show
         when={IS_BLE}
         fallback={
-          <a href="/update" class="text-sm text-gray-700 underline">
+          <a href="/update" class="text-sm text-ink underline">
             Open the WiFi firmware update page
           </a>
         }
       >
-        <p class="text-sm text-gray-500">
+        <p class="text-sm text-muted">
           Upload a <code>firmware.bin</code> built for this board. It takes a minute or two over
           Bluetooth. If the new firmware fails to start, the lamp returns to the current one. The
           latest build for esp32dev is published next to this page:{" "}
@@ -328,13 +328,13 @@ const FirmwareCard: Component = () => {
           class="text-sm"
         />
         <Show when={progress() !== undefined}>
-          <div class="h-2 bg-gray-200 rounded">
+          <div class="h-2 bg-line rounded">
             <div
-              class="h-2 bg-green-600 rounded transition-all"
+              class="h-2 bg-brand rounded transition-all"
               style={{ width: `${Math.round((progress() ?? 0) * 100)}%` }}
             />
           </div>
-          <p class="text-sm text-gray-500">{Math.round((progress() ?? 0) * 100)}%</p>
+          <p class="text-sm text-muted">{Math.round((progress() ?? 0) * 100)}%</p>
         </Show>
         <Button onClick={upload} disabled={!file() || uploading()}>
           {uploading() ? "Uploading..." : "Upload firmware"}
@@ -402,7 +402,7 @@ const Device: Component = () => {
     <Layout
       content={
         <div class="space-y-4 p-5 pb-24 lg:pb-5">
-          <h3 class="text-4xl text-white tracking-wide">Device</h3>
+          <h3 class="page-title">Device</h3>
           <div class="grid gap-4 xl:grid-cols-2">
             <DeviceInfoCard />
             <SettingsCard />
@@ -414,11 +414,8 @@ const Device: Component = () => {
         </div>
       }
       sidebar={
-        <div class="mt-auto pt-6 border-t border-gray-200">
-          <a
-            href="#/"
-            class="inline-flex items-center text-gray-700 hover:text-gray-900 font-medium"
-          >
+        <div class="mt-auto pt-6 border-t border-line">
+          <a href="#/" class="inline-flex items-center text-ink hover:text-brand font-medium">
             <i class="fa-solid fa-arrow-left mr-2" />
             Back to Main
           </a>

@@ -19,17 +19,17 @@ export const FrameTimeline: Component<FrameTimelineProps> = (props) => {
             <button
               type="button"
               onClick={() => props.onFrameClick(index())}
-              class={`shrink-0 p-1 rounded border-2 transition-all hover:border-gray-700 border-gray-400 flex flex-col items-center ${
+              class={`shrink-0 p-1 rounded border-2 transition-all hover:border-brand border-line flex flex-col items-center ${
                 props.focusedFrameIndex === index() ? "" : "opacity-50"
               }`}
               title={`Frame ${index() + 1}`}
             >
               <div class="w-8 h-12 grid grid-cols-16 gap-0">
                 <For each={screen()}>
-                  {(pixel) => <div class={`w-0.5 h-0.5 ${pixel ? "bg-white" : "bg-gray-900"}`} />}
+                  {(pixel) => <div class={`w-0.5 h-0.5 ${pixel ? "bg-white" : "bg-ink"}`} />}
                 </For>
               </div>
-              <div class="text-xs text-center mt-1 text-gray-400 w-full">{index() + 1}</div>
+              <div class="text-xs text-center mt-1 text-muted w-full">{index() + 1}</div>
             </button>
           )}
         </For>

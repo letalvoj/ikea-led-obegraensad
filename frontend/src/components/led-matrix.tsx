@@ -176,9 +176,9 @@ export const LedMatrix: Component<Props> = (props) => {
 
   return (
     <div
-      class="p-4 bg-[#111111] shadow-lg mx-auto"
+      class="p-4 bg-[#111111] shadow-[0_18px_30px_-12px_#0008] mx-auto"
       style={{
-        width: "min(100%, 700px, (100vh - 16rem) * 9 / 13)",
+        width: "min(100%, 700px, (100vh - 27rem) * 9 / 13)",
       }}
     >
       <div

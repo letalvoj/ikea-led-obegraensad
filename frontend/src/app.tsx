@@ -1,5 +1,6 @@
 import { type Component, createEffect, createMemo, createSignal, Show } from "solid-js";
 
+import { ProductLabel, Wall } from "./components/catalogue";
 import { Layout } from "./components/layout/layout";
 import Sidebar from "./components/layout/sidebar";
 import { LedMatrix } from "./components/led-matrix";
@@ -125,35 +126,23 @@ export const App: Component = () => {
   const renderDrawControls = () => (
     <div class="lg:hidden w-full max-w-100 sm:max-w-125">
       <div class="grid grid-cols-4 gap-2">
-        <button
-          type="button"
-          onClick={handleLoadImage}
-          class="flex flex-col items-center justify-center gap-1 bg-gray-700 text-white border-0 p-2 cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded text-xs"
-        >
+        <button type="button" onClick={handleLoadImage} class="btn flex-col gap-1 text-xs">
           <i class="fa-solid fa-file-import text-base" />
           <span>Import</span>
         </button>
         <button
           type="button"
           onClick={handleClear}
-          class="flex flex-col items-center justify-center gap-1 bg-gray-700 text-white border-0 p-2 cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded hover:bg-red-600 text-xs"
+          class="btn flex-col gap-1 hover:bg-red-600 text-xs"
         >
           <i class="fa-solid fa-trash text-base" />
           <span>Clear</span>
         </button>
-        <button
-          type="button"
-          onClick={handlePersist}
-          class="flex flex-col items-center justify-center gap-1 bg-gray-700 text-white border-0 p-2 cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded text-xs"
-        >
+        <button type="button" onClick={handlePersist} class="btn flex-col gap-1 text-xs">
           <i class="fa-solid fa-floppy-disk text-base" />
           <span>Save</span>
         </button>
-        <button
-          type="button"
-          onClick={handleLoad}
-          class="flex flex-col items-center justify-center gap-1 bg-gray-700 text-white border-0 p-2 cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded text-xs"
-        >
+        <button type="button" onClick={handleLoad} class="btn flex-col gap-1 text-xs">
           <i class="fa-solid fa-refresh text-base" />
           <span>Load</span>
         </button>
@@ -162,14 +151,12 @@ export const App: Component = () => {
   );
 
   const renderTabNavigation = () => (
-    <div class="flex rounded bg-gray-800 p-1 text-sm">
+    <div class="flex rounded-full bg-white border border-line p-1 text-xs font-bold">
       <Show when={canConfigure()}>
         <button
           type="button"
-          class={`rounded px-3 py-1.5 ${
-            activeTab() === "configuration"
-              ? "bg-gray-600 text-white"
-              : "text-gray-300 hover:text-white"
+          class={`rounded-full px-4 py-1.5 ${
+            activeTab() === "configuration" ? "bg-ink text-white" : "text-ink hover:text-brand"
           }`}
           onClick={() => setActiveTab("configuration")}
         >
@@ -178,10 +165,8 @@ export const App: Component = () => {
       </Show>
       <button
         type="button"
-        class={`rounded px-3 py-1.5 ${
-          activeTab() === "preview"
-            ? "bg-gray-600 text-white"
-            : "text-gray-300 hover:text-white"
+        class={`rounded-full px-4 py-1.5 ${
+          activeTab() === "preview" ? "bg-ink text-white" : "text-ink hover:text-brand"
         }`}
         onClick={() => setActiveTab("preview")}
       >
@@ -190,7 +175,9 @@ export const App: Component = () => {
     </div>
   );
 
-  const renderLivePreview = () => <div class="flex flex-col items-center">{renderMatrix(true)}</div>;
+  const renderLivePreview = () => (
+    <div class="flex flex-col items-center">{renderMatrix(true)}</div>
+  );
 
   const renderDrawConfiguration = () => (
     <div class="flex flex-col items-center gap-6">
@@ -200,21 +187,23 @@ export const App: Component = () => {
   );
 
   const renderTabContent = () => (
-    <Show
-      when={canConfigure() && activeTab() === "configuration"}
-      fallback={renderLivePreview()}
-    >
+    <Show when={canConfigure() && activeTab() === "configuration"} fallback={renderLivePreview()}>
       {renderDrawConfiguration()}
     </Show>
   );
 
   const renderContentTabs = () => (
-    <div class="grid p-8 h-full justify-center items-center sm:p-4 sm:m-0">
-      <div class="w-full flex flex-col items-center gap-4">
+    <Wall>
+      <div class="w-full flex flex-col items-center gap-5">
         {renderTabNavigation()}
         {renderTabContent()}
+        <Show when={activePlugin()}>
+          {(plugin) => (
+            <ProductLabel name={plugin().name} page={plugin().id} description="lamp mode, white" />
+          )}
+        </Show>
       </div>
-    </div>
+    </Wall>
   );
 
   return (

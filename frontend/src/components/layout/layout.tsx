@@ -3,6 +3,7 @@ import { type Component, createSignal, type JSX, Show } from "solid-js";
 import { useStore } from "../../contexts/store";
 import { IS_BLE } from "../../transport";
 import { BluetoothConnect } from "../bluetooth-connect";
+import { Masthead, Slab } from "../catalogue";
 import { ScreenInfo } from "../screen-info";
 
 const WifiConnectionHint: Component = () => {
@@ -10,9 +11,9 @@ const WifiConnectionHint: Component = () => {
 
   return (
     <>
-      <h2 class="text-4xl mb-4">{store.connectionStatus}...</h2>
+      <h2 class="page-title mb-4">{store.connectionStatus}...</h2>
       <Show when={store.connectionState() === 0}>
-        <p class="text-white text-sm max-w-md mx-auto">
+        <p class="text-sm max-w-md mx-auto">
           Make sure your device is powered on and connected to the same network. Check browser
           console for connection errors.
         </p>
@@ -33,6 +34,8 @@ export const Layout: Component<{
 
   return (
     <div class="h-full flex flex-col">
+      <Masthead />
+      <Slab />
       <Show
         when={store.connectionState() === 1}
         fallback={
@@ -61,7 +64,7 @@ export const Layout: Component<{
 
           <aside
             class={`bg-white p-6 shadow-lg flex flex-col
-              lg:relative lg:h-full lg:rounded-2xl
+              lg:relative lg:h-full
               fixed top-0 left-0 h-full w-full z-50
               transition-transform duration-300 ease-in-out
               ${isMobileMenuOpen() ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
@@ -81,11 +84,7 @@ export const Layout: Component<{
             }}
           >
             {props.sidebar}
-            <button
-              type="button"
-              onClick={closeMobileMenu}
-              class="lg:hidden mt-4 w-full bg-gray-700 text-white border-0 px-3 py-2 text-sm cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded"
-            >
+            <button type="button" onClick={closeMobileMenu} class="lg:hidden mt-4 w-full btn">
               <i class="fa-solid fa-times mr-2" />
               Close Menu
             </button>
@@ -99,7 +98,7 @@ export const Layout: Component<{
         <button
           type="button"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen())}
-          class="lg:hidden fixed bottom-6 right-6 z-30 bg-gray-700 text-white border-0 py-3 px-4 rounded-full shadow-lg cursor-pointer font-bold hover:opacity-80 active:-translate-y-px transition-all"
+          class="lg:hidden fixed bottom-6 right-6 z-30 btn shadow-lg"
         >
           <i class="fa-solid fa-bars text-xl" />
         </button>

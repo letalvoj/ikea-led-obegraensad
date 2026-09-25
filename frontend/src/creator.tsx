@@ -426,81 +426,61 @@ export const Creator: Component = () => {
         <div class="h-full">
           <div class="grid grid-rows-[calc(100vh-10rem)_auto]">
             <div class="overflow-y-auto space-y-3">
-              <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Controls</h3>
+              <h3 class="section-title">Controls</h3>
               <div class="flex gap-2 items-center flex-wrap">
                 <Show
                   when={!isPlaying()}
                   fallback={
-                    <Button
-                      disabled={screenSignals().length === 0}
-                      onClick={togglePlay}
-                      class="hover:bg-gray-700 transition-colors"
-                    >
+                    <Button disabled={screenSignals().length === 0} onClick={togglePlay}>
                       <i class="fa-solid fa-stop mr-1" />
                       <span class="text-xs">Stop</span>
                     </Button>
                   }
                 >
                   <div class="flex gap-2 grow">
-                    <Button onClick={handleAddScreen} class="hover:bg-gray-700 transition-colors">
+                    <Button onClick={handleAddScreen}>
                       <i class="fa-solid fa-plus mr-1" />
                       <span class="text-xs">Add</span>
                     </Button>
 
-                    <Button
-                      disabled={screenSignals().length === 0}
-                      onClick={togglePlay}
-                      class="hover:bg-gray-700 transition-colors"
-                    >
+                    <Button disabled={screenSignals().length === 0} onClick={togglePlay}>
                       <i class="fa-solid fa-play mr-1" />
                       <span class="text-xs">Play</span>
                     </Button>
                   </div>
 
                   <div class="flex gap-2 grow">
-                    <Button
-                      disabled={!canUndo()}
-                      onClick={handleUndo}
-                      class="hover:bg-gray-700 transition-colors"
-                    >
+                    <Button disabled={!canUndo()} onClick={handleUndo}>
                       <i class="fa-solid fa-undo mr-1" />
                       <span class="text-xs">Undo</span>
                     </Button>
 
-                    <Button
-                      disabled={!canRedo()}
-                      onClick={handleRedo}
-                      class="hover:bg-gray-700 transition-colors"
-                    >
+                    <Button disabled={!canRedo()} onClick={handleRedo}>
                       <i class="fa-solid fa-redo mr-1" />
                       <span class="text-xs">Redo</span>
                     </Button>
                   </div>
-                  <div class="w-full border-t border-gray-200 my-2" />
+                  <div class="w-full border-t border-line my-2" />
 
                   <div class="flex gap-2 grow">
-                    <Button onClick={handleImportJSON} class="hover:bg-gray-700 transition-colors">
+                    <Button onClick={handleImportJSON}>
                       <i class="fa-solid fa-file-import mr-1" />
                       <span class="text-xs">Import</span>
                     </Button>
 
-                    <Button
-                      disabled={screenSignals().length === 0}
-                      onClick={handleExportJSON}
-                      class="hover:bg-gray-700 transition-colors"
-                    >
+                    <Button disabled={screenSignals().length === 0} onClick={handleExportJSON}>
                       <i class="fa-solid fa-file-export mr-1" />
                       <span class="text-xs">Export</span>
                     </Button>
                   </div>
 
                   <Show when={isAnimationPluginActive()}>
-                    <div class="w-full border-t border-gray-200 my-2" />
+                    <div class="w-full border-t border-line my-2" />
 
                     <Button
                       disabled={screenSignals().length === 0}
                       onClick={handleUploadData}
-                      class=" hover:bg-green-600 transition-colors"
+                      class="hover:bg-green-600"
                     >
                       <i class="fa-solid fa-upload mr-1" />
                       <span class="text-xs">Upload</span>
@@ -511,13 +491,10 @@ export const Creator: Component = () => {
 
               <Show when={!isAnimationPluginActive()}>
                 <div class="space-y-3">
-                  <p class="text-sm text-gray-500 font-bold">
+                  <p class="text-sm text-muted font-bold">
                     The "Animation" plugin needs to be active to use this feature.
                   </p>
-                  <Button
-                    onClick={handleSwitchToAnimationPlugin}
-                    class="hover:bg-gray-700 transition-colors w-full"
-                  >
+                  <Button onClick={handleSwitchToAnimationPlugin} class="w-full">
                     <i class="fa-solid fa-play mr-2" />
                     Activate Animation
                   </Button>
@@ -536,11 +513,8 @@ export const Creator: Component = () => {
               <KeyboardShortcutsHelp />
             </div>
 
-            <div class="mt-2 shrink-0 pt-6 border-t border-gray-200 flex align-bottom">
-              <a
-                href="#/"
-                class="inline-flex items-center text-gray-700 hover:text-gray-900 font-medium"
-              >
+            <div class="mt-2 shrink-0 pt-6 border-t border-line flex align-bottom">
+              <a href="#/" class="inline-flex items-center text-ink hover:text-brand font-medium">
                 <i class="fa-solid fa-arrow-left mr-2" />
                 Back to Main
               </a>

@@ -37,11 +37,7 @@ export const ResetScheduleButton = () => {
   const { reset } = useScheduleControls();
 
   return (
-    <button
-      type="button"
-      onClick={reset}
-      class="w-full bg-gray-600 hover:bg-gray-700 text-white border-0 px-3 py-2 text-sm cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded"
-    >
+    <button type="button" onClick={reset} class="w-full btn">
       Reset Scheduler
     </button>
   );
@@ -52,11 +48,7 @@ export const ToggleScheduleButton = () => {
   const { toggle } = useScheduleControls();
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      class="w-full bg-gray-600 text-white border-0 px-3 py-2 text-sm cursor-pointer font-semibold hover:opacity-80 active:-translate-y-px transition-all rounded"
-    >
+    <button type="button" onClick={toggle} class="w-full btn">
       {store.isActiveScheduler ? "Stop Scheduler" : "Start Scheduler"}
     </button>
   );
@@ -91,20 +83,16 @@ const Scheduler: Component = () => {
     <Layout
       content={
         <div class="space-y-3 p-5 pb-24 lg:pb-5">
-          <h3 class="text-4xl text-white tracking-wide">Scheduler</h3>
+          <h3 class="page-title">Scheduler</h3>
 
-          <div class="bg-white p-4 lg:p-6 rounded-md">
+          <div class="bg-white p-4 lg:p-6">
             <div class="space-y-2">
               <Show
                 when={store.schedule?.length > 0}
                 fallback={
                   <div class="text-center py-8">
-                    <div class="text-md text-gray-500 italic mb-4">No schedule set</div>
-                    <button
-                      type="button"
-                      onClick={handleAddItem}
-                      class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-all duration-200 font-semibold text-sm"
-                    >
+                    <div class="text-md text-muted italic mb-4">No schedule set</div>
+                    <button type="button" onClick={handleAddItem} class="btn px-4">
                       <i class="fa-solid fa-plus mr-2" />
                       Add First Plugin
                     </button>
@@ -114,10 +102,10 @@ const Scheduler: Component = () => {
                 <Index each={store.schedule}>
                   {(item, index) => (
                     <div
-                      class={`flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4 p-3 lg:p-4 rounded-lg shadow-sm border hover:border-gray-200 transition-all duration-200 ${
+                      class={`flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4 p-3 lg:p-4 rounded-lg shadow-sm border hover:border-line transition-all duration-200 ${
                         store.plugin === item().pluginId
-                          ? "bg-green-300 border-green-500"
-                          : "bg-white border-gray-100"
+                          ? "bg-accent/30 border-accent"
+                          : "bg-white border-line"
                       }`}
                     >
                       <Show
@@ -130,7 +118,7 @@ const Scheduler: Component = () => {
                                 onChange={(e) =>
                                   handlePluginChange(index, parseInt(e.currentTarget.value, 10))
                                 }
-                                class="w-full px-3 py-3 lg:py-2 text-base bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 disabled:border-0"
+                                class="w-full px-3 py-3 lg:py-2 text-base bg-paper border border-line rounded-lg focus:ring-2 focus:ring-brand focus:border-brand outline-none transition-all duration-200 disabled:border-0"
                               >
                                 <For each={store.plugins}>
                                   {(plugin) => <option value={plugin.id}>{plugin.name}</option>}
@@ -147,9 +135,9 @@ const Scheduler: Component = () => {
                                   onInput={(e) =>
                                     handleDurationChange(index, parseInt(e.currentTarget.value, 10))
                                   }
-                                  class="w-full lg:w-32 pr-20 pl-3 py-3 lg:py-2 text-base bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 disabled:border-0"
+                                  class="w-full lg:w-32 pr-20 pl-3 py-3 lg:py-2 text-base bg-paper border border-line rounded-lg focus:ring-2 focus:ring-brand focus:border-brand outline-none transition-all duration-200 disabled:border-0"
                                 />
-                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-sm">
                                   {item().duration > 1 ? "seconds" : "second"}
                                 </span>
                               </div>
@@ -157,7 +145,7 @@ const Scheduler: Component = () => {
                               <button
                                 type="button"
                                 onClick={() => handleRemoveItem(index)}
-                                class="p-3 lg:p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200 min-w-[44px] min-h-[44px] lg:min-w-0 lg:min-h-0"
+                                class="p-3 lg:p-2 text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200 min-w-[44px] min-h-[44px] lg:min-w-0 lg:min-h-0"
                                 aria-label="Remove item"
                               >
                                 <i class="fas fa-trash-alt text-lg" />
@@ -173,7 +161,7 @@ const Scheduler: Component = () => {
                         <div class="flex items-center gap-3">
                           <div class="relative">
                             {item().duration}
-                            <span class="ml-2 text-sm text-gray-500">
+                            <span class="ml-2 text-sm text-muted">
                               {item().duration > 1 ? "seconds" : "second"}
                             </span>
                           </div>
@@ -188,10 +176,8 @@ const Scheduler: Component = () => {
                     <button
                       type="button"
                       onClick={handleToggleScheduler}
-                      class={`flex-1 px-3 py-2 rounded-lg transition-all duration-200 font-semibold text-sm flex items-center justify-center gap-2 ${
-                        store.isActiveScheduler
-                          ? "bg-red-600 hover:bg-red-700 text-white"
-                          : "bg-green-600 hover:bg-green-700 text-white"
+                      class={`btn flex-1 ${
+                        store.isActiveScheduler ? "bg-red-600 hover:bg-red-700" : ""
                       }`}
                     >
                       <i class={`fa-solid ${store.isActiveScheduler ? "fa-stop" : "fa-play"}`} />
@@ -199,11 +185,7 @@ const Scheduler: Component = () => {
                     </button>
                   </Show>
                   <Show when={!store.isActiveScheduler}>
-                    <button
-                      type="button"
-                      onClick={handleAddItem}
-                      class="flex-1 bg-gray-700 hover:bg-gray-800 text-white px-3 py-2 rounded-lg transition-all duration-200 font-semibold text-sm flex items-center justify-center gap-2"
-                    >
+                    <button type="button" onClick={handleAddItem} class="btn flex-1">
                       <i class="fa-solid fa-plus" />
                       <span>Add Plugin</span>
                     </button>
@@ -218,31 +200,28 @@ const Scheduler: Component = () => {
         <>
           <div class="space-y-6">
             <div class="space-y-3">
-              <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Controls</h3>
+              <h3 class="section-title">Controls</h3>
 
               <div class="flex flex-col gap-2">
-                <Button onClick={handleAddItem} class="hover:bg-gray-700 transition-colors">
+                <Button onClick={handleAddItem}>
                   <i class="fa-solid fa-plus mr-2" />
                   Add Plugin
                 </Button>
 
                 <Show when={store.schedule.length > 0}>
-                  <div class="my-6 border-t border-gray-200" />
+                  <div class="my-6 border-t border-line" />
                   <ToggleScheduleButton />
                 </Show>
 
                 <Show when={store.isActiveScheduler}>
-                  <div class="my-6 border-t border-gray-200" />
+                  <div class="my-6 border-t border-line" />
                   <ResetScheduleButton />
                 </Show>
               </div>
             </div>
           </div>
-          <div class="mt-auto pt-6 border-t border-gray-200">
-            <a
-              href="#/"
-              class="inline-flex items-center text-gray-700 hover:text-gray-900 font-medium"
-            >
+          <div class="mt-auto pt-6 border-t border-line">
+            <a href="#/" class="inline-flex items-center text-ink hover:text-brand font-medium">
               <i class="fa-solid fa-arrow-left mr-2" />
               Back to Main
             </a>
