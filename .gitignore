@@ -35,3 +35,6 @@ dist-ble
 # Python
 # Byte-compiled / optimized / DLL files
 __pycache__/
+
+# full flash dumps; they contain WiFi credentials
+backups/
