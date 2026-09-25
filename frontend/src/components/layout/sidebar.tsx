@@ -30,6 +30,8 @@ interface SidebarProps {
 
 export const Sidebar: Component<SidebarProps> = (props) => {
   const [store] = useStore();
+  // modes are matched by name: their ids follow the registration order on the device
+  const activeMode = () => store.plugins.find((plugin) => plugin.id === store.plugin)?.name;
 
   return (
     <>
@@ -96,7 +98,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           </div>
         </SidebarSection>
 
-        <Show when={store?.plugin === 17 && !store?.isActiveScheduler}>
+        <Show when={activeMode() === "ArtNet" && !store?.isActiveScheduler}>
           <div class="my-6 border-t border-line" />
 
           <SidebarSection title="ArtNet Universe">
@@ -115,7 +117,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           </SidebarSection>
         </Show>
 
-        <Show when={store?.plugin === 4 && !store?.isActiveScheduler}>
+        <Show when={activeMode() === "GameOfLife" && !store?.isActiveScheduler}>
           <div class="my-6 border-t border-line" />
 
           <SidebarSection title="Time Step Delay">
@@ -136,12 +138,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           </SidebarSection>
         </Show>
 
-        <Show
-          when={
-            store?.plugins.find((plugin) => plugin.id === store.plugin)?.name === "Draw" &&
-            !store?.isActiveScheduler
-          }
-        >
+        <Show when={activeMode() === "Draw" && !store?.isActiveScheduler}>
           <div class="my-6 border-t border-line hidden lg:block" />
 
           <div class="hidden lg:block">

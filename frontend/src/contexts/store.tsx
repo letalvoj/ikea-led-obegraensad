@@ -134,7 +134,7 @@ export const StoreProvider = (props?: { value?: Store; children?: JSX.Element })
               actions.setPlugin(json.plugin);
             }
 
-            if (mainStore.plugin === 1) {
+            if (mainStore.plugins.find((p) => p.id === mainStore.plugin)?.name === "Draw") {
               actions.setIndexMatrix([...new Array(256)].map((_, i) => i));
             }
 

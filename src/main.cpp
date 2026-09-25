@@ -199,42 +199,49 @@ void baseSetup()
   setenv("TZ", config.getTzInfo().c_str(), 1);
   tzset();
 
-  pluginManager.addPlugin(new DrawPlugin());
-  pluginManager.addPlugin(new BreakoutPlugin());
-  pluginManager.addPlugin(new SnakePlugin());
-  pluginManager.addPlugin(new GameOfLifePlugin());
-  pluginManager.addPlugin(new StarsPlugin());
-  pluginManager.addPlugin(new LinesPlugin());
-  pluginManager.addPlugin(new CirclePlugin());
-  pluginManager.addPlugin(new RainPlugin());
-  pluginManager.addPlugin(new MatrixRainPlugin());
-  pluginManager.addPlugin(new FireworkPlugin());
-  pluginManager.addPlugin(new BlobPlugin());
-  pluginManager.addPlugin(new SpiralPlugin());
-  pluginManager.addPlugin(new WavePlugin());
-  pluginManager.addPlugin(new CheckerboardPlugin());
-  pluginManager.addPlugin(new RadarPlugin());
-  pluginManager.addPlugin(new BubblesPlugin());
-  pluginManager.addPlugin(new CometPlugin());
-  pluginManager.addPlugin(new FirefliesPlugin());
-  pluginManager.addPlugin(new MeteorShowerPlugin());
-  pluginManager.addPlugin(new ScanlinesPlugin());
-  pluginManager.addPlugin(new SparkleFieldPlugin());
-  pluginManager.addPlugin(new WaveBarsPlugin());
-
+  // Registration order is the order of the mode ids and of the button cycle:
+  // favourites first, then roughly by how interesting they are to watch, then the
+  // utility and network-fed modes, and last the ones that light most of the panel
+  // at once (they need a proper power supply).
 #ifdef ENABLE_SERVER
   pluginManager.addPlugin(new BigClockPlugin());
-  pluginManager.addPlugin(new ClockPlugin());
+#endif
+  pluginManager.addPlugin(new GameOfLifePlugin());
+  pluginManager.addPlugin(new BoxDudePlugin());
+  pluginManager.addPlugin(new MatrixRainPlugin());
   pluginManager.addPlugin(new PongClockPlugin());
+  pluginManager.addPlugin(new BreakoutPlugin());
+  pluginManager.addPlugin(new SnakePlugin());
+  pluginManager.addPlugin(new FireworkPlugin());
+  pluginManager.addPlugin(new RadarPlugin());
+  pluginManager.addPlugin(new MeteorShowerPlugin());
+  pluginManager.addPlugin(new FirefliesPlugin());
+  pluginManager.addPlugin(new SpiralPlugin());
+  pluginManager.addPlugin(new CometPlugin());
+  pluginManager.addPlugin(new RainPlugin());
+  pluginManager.addPlugin(new BubblesPlugin());
+  pluginManager.addPlugin(new StarsPlugin());
+  pluginManager.addPlugin(new SparkleFieldPlugin());
   pluginManager.addPlugin(new TickingClockPlugin());
+#ifdef ENABLE_SERVER
+  pluginManager.addPlugin(new ClockPlugin());
   pluginManager.addPlugin(new WeatherPlugin());
+#endif
+  pluginManager.addPlugin(new ScanlinesPlugin());
+  pluginManager.addPlugin(new CirclePlugin());
+  pluginManager.addPlugin(new DrawPlugin());
+#ifdef ENABLE_SERVER
   pluginManager.addPlugin(new AnimationPlugin());
   pluginManager.addPlugin(new DDPPlugin());
   pluginManager.addPlugin(new ArtNetPlugin());
 #endif
 
-  // appended last so the ids of the existing plugins (and saved schedules) stay put
-  pluginManager.addPlugin(new BoxDudePlugin());
+  // power hungry
+  pluginManager.addPlugin(new WaveBarsPlugin());
+  pluginManager.addPlugin(new LinesPlugin());
+  pluginManager.addPlugin(new BlobPlugin());
+  pluginManager.addPlugin(new CheckerboardPlugin());
+  pluginManager.addPlugin(new WavePlugin());
 
   Screen.clear();
   pluginManager.init();
