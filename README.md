@@ -21,10 +21,12 @@ Turn your OBEGRÄNSAD LED Wall Lamp into a live drawing canvas
 - [Software Setup](#software-setup)
   - [ESP32 Setup with VS Code and PlatformIO](#esp32-setup-with-vs-code-and-platformio)
   - [WiFi Configuration](#wifi-configuration)
+  - [Flashing over USB, Backup and Restore](#flashing-over-usb-backup-and-restore)
 - [OTA Updates](#ota-updates)
   - [Configuration](#configuration)
   - [Upload Methods](#upload-methods)
   - [Visual Feedback](#visual-feedback)
+  - [Rollback](#rollback)
 - [Bluetooth Control](#bluetooth-control)
   - [Device Protocol](#device-protocol)
 - [HTTP API Reference](#http-api-reference)
@@ -39,6 +41,7 @@ Turn your OBEGRÄNSAD LED Wall Lamp into a live drawing canvas
 - [Development](#development)
   - [Plugin Development](#plugin-development)
 - [Troubleshooting](#troubleshooting)
+  - [Serial Diagnostics](#serial-diagnostics)
 
 ## Features
 
@@ -50,30 +53,55 @@ Turn your OBEGRÄNSAD LED Wall Lamp into a live drawing canvas
 - Persist your drawing
 - Rotate image
 - Live Drawing
-- OTA Update
-- WiFi Control
-- Web GUI
+- OTA Update, over WiFi or Bluetooth, with automatic rollback of a broken image
+- WiFi Control, or no WiFi at all: the display never waits for the network
+- Bluetooth Control from a web page (Chrome/Edge), including time sync
+- Web GUI with a Device page for settings, diagnostics and WiFi credentials
 - Load an image
+- Draw arbitrary frames over WebSocket, Bluetooth or HTTP
 - Switch plugin by pressing the button
 - Schedule Plugins to switch after "n" seconds
+- Serial diagnostics line every 5 seconds
 
-**Available Plugins:**
+**Available Plugins**, in the order of their ids and of the button cycle. The ones
+marked ⚡ light most of the panel at once and need a proper power supply (see
+[Troubleshooting](#troubleshooting)):
 
-- Draw
-- Game of Life
-- Breakout
-- Snake
-- Stars
-- Lines
-- Circle
-- Clock
-- Big Clock
-- Weather
-- Rain
-- Animation (with Animation Creator in Web UI)
-- Firework
-- DDP (Display Data Protocol)
-- Pong Clock
+1. Big Clock
+2. Game of Life
+3. Box Dude: a tiny prisoner in his box, animated procedurally. He wanders, kicks a
+   ball, knocks on the walls, naps, scratches tally marks and eventually breaks out
+4. Matrix Rain
+5. Pong Clock
+6. Breakout
+7. Snake
+8. Firework
+9. Radar
+10. Meteor Shower
+11. Fireflies
+12. Spiral
+13. Comet
+14. Rain
+15. Bubbles
+16. Stars
+17. Sparkle Field
+18. Ticking Clock
+19. Clock
+20. Weather (needs WiFi)
+21. Scanlines
+22. Circle
+23. Draw
+24. Animation (with Animation Creator in Web UI)
+25. DDP (Display Data Protocol, needs WiFi)
+26. ArtNet (needs WiFi)
+27. Wave Bars ⚡
+28. Lines ⚡
+29. Blobs ⚡
+30. Checkerboard ⚡
+31. Wave ⚡
+
+The clocks need the time: from NTP over WiFi, or from the Bluetooth page, which sets
+the clock whenever it connects.
 
 </details>
 
@@ -185,19 +213,48 @@ You can use the original button wiring without adding external connections. See 
 
 **ESP32 (WiFi Manager - Recommended):**
 
-This project uses [tzapu's WiFiManager](https://github.com/tzapu/WiFiManager). After booting:
+This project uses [tzapu's WiFiManager](https://github.com/tzapu/WiFiManager). WiFi never
+blocks the display: the lamp starts drawing right away and connects in the background.
 
-1. Device attempts to connect to known access points
-2. If none available, creates network named `Ikea Display Setup WiFi`
-3. Connect to this network on any device
-4. Captive portal guides you through WiFi configuration
-5. Device reboots and connects to your network
+1. Device tries the saved network for 30 s (`WIFI_CONNECT_TIMEOUT_MS`)
+2. If that fails, or nothing is saved, it opens a setup network named `IKEA`
+   (`WIFI_MANAGER_SSID`) for 180 s (`WIFI_PORTAL_TIMEOUT_S`), then tries the saved network
+   again, and so on
+3. Connect to `IKEA` on any device; the captive portal guides you through the configuration
+4. Device reboots once and connects to your network
 
-\*_Network name can be changed via `WIFI_MANAGER_SSID` in `include/constants.h`._
+Once the web server is running, a lost connection is only retried; the setup network does
+not reopen until the next boot. Credentials can also be set, or forgotten, from the Device
+page (over WiFi or Bluetooth), and WiFi can be switched off entirely there ("WiFi enabled",
+stored as `wifiEnabled` in the config); the lamp then runs on Bluetooth only. Changing that
+switch restarts the lamp.
 
 **ESP8266 (Manual Configuration):**
 
 For ESP8266, WiFi Manager is not available. Set `WIFI_SSID` and `WIFI_PASSWORD` in `include/secrets.h`.
+
+### Flashing over USB, Backup and Restore
+
+Some ESP32 boards (CP2102 USB bridges in particular) corrupt data above 115200 baud, so
+the commands below use that speed. Adjust the port to yours (`pio device list`).
+
+```bash
+# back up the whole 4 MB flash (about 6 minutes), then check the file against the chip
+~/.platformio/penv/bin/python ~/.platformio/packages/tool-esptoolpy/esptool.py --port /dev/cu.usbserial-0001 --baud 115200 read_flash 0 0x400000 backups/flash-full-4MB.bin
+~/.platformio/penv/bin/python ~/.platformio/packages/tool-esptoolpy/esptool.py --port /dev/cu.usbserial-0001 --baud 115200 verify_flash 0 backups/flash-full-4MB.bin
+
+# flash a fresh build: bootloader, partition table and app in one image
+pio run -e esp32dev
+~/.platformio/penv/bin/python ~/.platformio/packages/tool-esptoolpy/esptool.py --port /dev/cu.usbserial-0001 --baud 115200 write_flash 0 .pio/build/esp32dev/firmware.factory.bin
+
+# restore the backup
+~/.platformio/penv/bin/python ~/.platformio/packages/tool-esptoolpy/esptool.py --port /dev/cu.usbserial-0001 --baud 115200 write_flash 0 backups/flash-full-4MB.bin
+```
+
+`backups/` is git-ignored: a flash dump contains the stored WiFi credentials. Writing the
+factory image also clears the settings, so the lamp starts in the first mode. If a board
+does not enter the bootloader on its own, hold its BOOT (IO0) button while the command
+connects.
 
 ---
 
@@ -252,6 +309,12 @@ Or use the PlatformIO Upload button in VS Code (bottom toolbar).
 - Python packages: `requests_toolbelt` and `tqdm`
 - Install if needed: `pip install requests_toolbelt tqdm`
 
+#### Method 3: Bluetooth
+
+The Device page of the [Bluetooth page](#bluetooth-control) uploads a `firmware.bin` over
+Bluetooth, in 4 KB windows that the lamp acknowledges; lost chunks are resent. It takes a
+minute or two.
+
 ### Visual Feedback
 
 During OTA updates, the LED matrix provides visual feedback:
@@ -276,6 +339,13 @@ OTA update finished successfully!
 - Verify IP address in `platformio.ini` matches device IP
 - Check credentials match in both `secrets.h` and `platformio.ini`
 - For upload failures, try the web interface method first
+
+### Rollback
+
+On ESP32 a freshly updated image (over WiFi or Bluetooth) stays "pending" until it has
+run for 30 seconds (`OTA_ROLLBACK_GRACE_MS`). If it crashes or is power-cycled before
+that, the bootloader boots the previous image again. Images flashed over USB are not
+affected.
 
 ---
 
@@ -319,9 +389,25 @@ The websocket (`/ws`) and Bluetooth carry the same JSON commands, `{"event": "<n
 | `time` | `epoch` | Sets the clock |
 | `wifi-credentials`, `wifi-forget` | `ssid`, `password` | Station WiFi |
 | `reboot`, `factory-reset` | | Maintenance |
+| `ota-begin`, `ota-status`, `ota-abort` | `size`, optional `md5` | Firmware update over Bluetooth (`ota` events) |
 
 Binary 256-byte websocket messages are drawn as frames too. Commands report back with a
 `result` event (`command`, `ok`, `message`).
+
+**Over Bluetooth** (`include/ble.h`, `frontend/src/transport/ble.ts`), the lamp exposes one
+GATT service, `0b5e0001-1ea0-4d1a-9b7e-0bec0ffee000`, with three characteristics:
+
+| UUID | Direction | Content |
+| --- | --- | --- |
+| `0b5e0002-…` RX | write | messages from the browser |
+| `0b5e0003-…` TX | notify | messages from the lamp |
+| `0b5e0004-…` OTA | write without response | firmware chunks: `[offset, u32 little endian][bytes]` |
+
+RX and TX messages are split into chunks. Each chunk starts with a header byte: `0x01` for
+JSON or `0x02` for a 256-byte frame, OR-ed with `0x80` on the last chunk of a message.
+A firmware update starts with `ota-begin`; the lamp answers with an `ota` event carrying the
+MTU and window size, the browser sends a window of chunks and waits for the next `ota`
+event (`progress`, `resend` with the offset to continue from, `done` or `error`).
 
 ## HTTP API Reference
 
@@ -783,6 +869,7 @@ This allows the development server to proxy API requests to your device during d
 
 - `pnpm dev` - Start development server with hot reload (usually at `http://localhost:5173`)
 - `pnpm build` - Build optimized production bundle and generate `webgui.cpp` for ESP32
+- `pnpm build:ble` - Build the Web Bluetooth variant into `frontend/dist-ble/`
 - `pnpm preview` - Preview production build locally
 - `pnpm lint` - Run linter to check code quality
 - `pnpm format` - Format code with Prettier
@@ -795,6 +882,20 @@ This allows the development server to proxy API requests to your device during d
 4. Test your changes against a running device
 5. When ready, run `pnpm build` to generate the embedded web UI
 6. The build process creates `src/webgui.cpp` which is compiled into the firmware
+
+**Transports:** the UI talks to the lamp through `frontend/src/transport/`: a WebSocket
+in the embedded build, or `BleTransport` (Web Bluetooth, mimicking the WebSocket API) when
+built with `VITE_TRANSPORT=ble`. Both carry the [device protocol](#device-protocol).
+
+**Look:** the UI is themed like an IKEA catalogue. Colours and fonts are Tailwind theme
+tokens in `frontend/src/index.css` (`brand`, `accent`, `ink`, `paper`, `wall`, ...) with
+shared `btn`, `section-title`, `page-title`, `slab` and `price-tag` utilities; the drawn
+catalogue pieces (masthead, room, assembly steps) live in
+`frontend/src/components/catalogue.tsx`.
+
+**Publishing the Bluetooth page:** `scripts/publish-bt-client.sh <letalvoj.github.io checkout>`
+builds the page and the esp32dev firmware into `obegraensad-bt-client/` of that repository;
+commit and push it there.
 
 **Docker Build:**
 
@@ -881,6 +982,14 @@ void MyPlugin::websocketHook(JsonDocument &request) {
 pluginManager.addPlugin(new MyPlugin());
 ```
 
+The registration order in `baseSetup()` gives the plugin ids and the order of the button
+cycle, so inserting a plugin renumbers the ones after it (saved defaults and schedules
+refer to ids). The web UI matches plugins by name, never by id.
+
+**Keep `loop()` short and non-blocking:** it runs on the screen task. For the time, use
+`getLocalTime(&timeinfo, 0)`: without the 0 it waits up to 5 seconds whenever the clock
+has not been set yet, which is always the case without WiFi until the Bluetooth page syncs it.
+
 ---
 
 ## Troubleshooting
@@ -898,3 +1007,35 @@ pluginManager.addPlugin(new MyPlugin());
 - Use separate USB power cables for the microcontroller and the matrix display (e.g. by using a power supply with 2x5V output of 10W each)
 - Reason: When voltage drops too low on the microcontroller board output pins might not reach 3.3V, since the matrix display is actually expecting a 0V-5V signal the resulting output voltage of the microcontroller might be lower than the threshold of the matrix display resulting in flickering / completely black matrix displays. Additionally must power supplies only deliver 10W per port which is not always sufficient to power microcontroller and matrix displays (especially at brightness 100% and more than half the pixels being lit)
 - Has the additional advantage that you can upload firmware without dissassembly of the backpanel if you cannot use OTA updates
+
+### Crashes or resets in bright modes
+
+The same power problem, typically when the lamp runs from a laptop's USB port: modes that
+light most of the panel at once (Game of Life, and the ⚡ modes at the end of the list) pull
+the supply down until the board resets. Use a proper 5V supply, or stay with the sparse
+modes.
+
+### Black panel right after flashing
+
+Not necessarily a fault: a fresh flash starts in mode 1 (Big Clock), which stays empty
+until the clock is set by NTP or by connecting the Bluetooth page, and Draw shows your
+saved drawing, which is empty on a fresh lamp. Press the button to go to the next mode, or
+check the [serial diagnostics](#serial-diagnostics).
+
+### Serial Diagnostics
+
+Every 5 seconds (`DIAG_LOG_INTERVAL_MS`) the firmware prints one status line at 115200
+baud, plus a line for every button press and mode switch:
+
+```
+[Diag] up 15s | mode 1 Big Clock | status 0 | brightness 255 | screen 70132 frames (+25025) | button pin 1 | loops 2636 | heap 67924 | wifi portal | ble idle
+[Button] pattern 0, status 0
+[Plugins] activating 2 GameOfLife
+```
+
+- `screen ... (+n)`: panel refreshes in the last 5 seconds, about 25000 when the screen
+  timer runs; 0 means the display is not being driven
+- `loops`: main loop iterations so far; it should grow by about 1000 every 5 seconds. A
+  crawl means something blocks the loop, and the button stops responding
+- `button pin`: raw level of the button pin, 1 released, 0 pressed
+- `status`: 0 normal, 1 streaming frames, 2 firmware update, 3 loading
